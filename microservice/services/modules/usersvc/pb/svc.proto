@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package pb;
+
+//user information service definition
+
+service Usersvc {
+  //get user basic information
+  rpc GetUserinfo(GetUserinfoRequest) returns (GetUserinfoResponse) {}
+}
+
+//get userinfo by id
+message GetUserinfoRequest {
+  int64 id = 1;
+}
+
+//return userinfo
+message GetUserinfoResponse {
+  Userinfo userinfo = 1;
+  string err = 2;
+}
+
+//userinfo definition
+message Userinfo {
+  int64 id = 1;
+  string username = 2;
+  string phone = 3;
+  int64 sex = 4;
+  string avatar = 5;
+  int64 gouhao = 6;
+  int64 birthday = 7;
+  string avatars = 8;
+  string signature = 9;
+  string appfrom = 10;
+  string appver = 11;
+  string backgroud_image = 12;
+  string update_appver = 13;
+  int64 privacy = 14;
+  int64 loadRecTags = 15;
+  int64 game_power = 16;
+  int64 mark = 17;
+  int64 level = 18;
+  string question_photo = 19;
+  string lan = 20;
+  int64 notify = 21;
+  repeated int64 bindGameIds = 22;
+  string userPosition = 23;
+  int64 userStatus = 24;
+  string imToken = 25;
+}
