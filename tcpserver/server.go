@@ -20,10 +20,11 @@ type TCPServer struct {
 	outChan    chan *Packet       //服务器下发到客户端
 }
 
-func NewTCPServer(protocol Protocol, nsqaddr string) *TCPServer {
+func NewTCPServer(listenaddr string, nsqaddr string) *TCPServer {
 	server := &TCPServer{
+		address:    listenaddr,
 		quit:       make(chan bool),
-		protocol:   protocol,
+		protocol:   &CustomProto{},
 		uidClients: make(map[int64]*Client),
 		dtClients:  make(map[string]*Client),
 		inChan:     make(chan *Packet, 1024),
@@ -105,17 +106,20 @@ func (server *TCPServer) Close() {
 	}
 	server.mutex.Unlock()
 
+	server.sub.Close()
 	server.quit <- true
+
 	close(server.quit)
 	close(server.inChan)
 	close(server.outChan)
+	server.sub.Close()
 }
 
-func (server *TCPServer) Serve() {
+func (server *TCPServer) Serve() error {
 	listener, err := net.Listen("tcp", server.address)
 	if err != nil {
 		fmt.Printf("error listen tcp: %s, error: %s\n", server.address, err.Error())
-		return
+		return err
 	}
 
 	fmt.Printf("listen tcp: %s\n", server.address)
@@ -132,14 +136,12 @@ func (server *TCPServer) Serve() {
 			if !strings.Contains(err.Error(), "use of closed network connection") {
 				fmt.Printf("ERROR: listener.Accept() - %s\n", err)
 			}
-			break
+			return err
 		}
 		//启动一个线程, 交给 handler 处理, 这里使用的是 one connect per thread 模式
 		//因为golang的特性, one connect per thread 模式 实际上是  one connect per goroutine
 		go server.handle(conn)
 	}
-
-	fmt.Printf("end listen tcp: %s\n", server.address)
 }
 
 func (server *TCPServer) handle(conn net.Conn) {
