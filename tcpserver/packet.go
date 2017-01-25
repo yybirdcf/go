@@ -52,7 +52,6 @@ func (proto *CustomProto) ReadPacket(conn net.Conn) (*Packet, error) {
 		fmt.Printf("read packet length error: %s\n", err.Error())
 		return nil, err
 	}
-	fmt.Printf("%+v\n", buf)
 	var length int32
 	buffer := bytes.NewBuffer(buf)
 	binary.Read(buffer, binary.BigEndian, &length)
@@ -64,13 +63,11 @@ func (proto *CustomProto) ReadPacket(conn net.Conn) (*Packet, error) {
 		fmt.Printf("read packet body error: %s\n", err.Error())
 		return nil, err
 	}
-	fmt.Printf("%+v\n", buf)
 	return proto.Unserialize(buf)
 }
 
 func (proto *CustomProto) WritePacket(conn net.Conn, p *Packet) error {
 	buf := proto.Serialize(p)
-	fmt.Printf("%+v\n", buf)
 	n, err := conn.Write(buf)
 	if err != nil {
 		fmt.Printf("socket write error: %s\n", err.Error())
