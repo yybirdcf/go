@@ -146,6 +146,7 @@ func (client *Client) handleRegister(p *Packet) {
 			//同一个客户端 do nothing
 		} else {
 			//不是同一个客户端，注销之前的客户端
+			c.Close()
 			client.server.UnRegisterClient(c.uid, deviceInfo.Token)
 			//注册新的客户端
 			client.server.RegisterClientByDt(client, deviceInfo.Token)
@@ -155,6 +156,8 @@ func (client *Client) handleRegister(p *Packet) {
 	if client.IsAuth() {
 		client.server.RegisterClientByUid(client, client.uid)
 	}
+
+	client.deviceToken = deviceInfo.Token
 
 	//返回成功回执
 	packet := &Packet{
@@ -211,6 +214,7 @@ func (client *Client) handleAuth(p *Packet) {
 			//同一个客户端 do nothing
 		} else {
 			//不是同一个客户端，注销之前的客户端
+			c.Close()
 			client.server.UnRegisterClient(authInfo.Uid, c.deviceToken)
 			//注册新的客户端
 			client.server.RegisterClientByDt(client, client.deviceToken)
@@ -220,6 +224,7 @@ func (client *Client) handleAuth(p *Packet) {
 
 	atomic.StoreInt32(&client.authFlag, 1)
 
+	client.uid = authInfo.Uid
 	//成功回执
 	packet := &Packet{
 		Ver: p.Ver,
