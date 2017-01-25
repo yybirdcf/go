@@ -11,19 +11,31 @@ import (
 type TCPServer struct {
 	address    string
 	quit       chan bool
-	protocol   Protocol //消息解析协议
+	sub        *Subscribe //订阅消息
+	protocol   Protocol   //消息解析协议
 	mutex      sync.Mutex
 	uidClients map[int64]*Client  //用户id对应客户端映射表
 	dtClients  map[string]*Client //设备token对应客户端映射表
+	inChan     chan *Packet       //客户端写入到服务器
+	outChan    chan *Packet       //服务器下发到客户端
 }
 
-func NewTCPServer(protocol Protocol) *TCPServer {
-	return &TCPServer{
+func NewTCPServer(protocol Protocol, nsqaddr string) *TCPServer {
+	server := &TCPServer{
 		quit:       make(chan bool),
 		protocol:   protocol,
 		uidClients: make(map[int64]*Client),
 		dtClients:  make(map[string]*Client),
+		inChan:     make(chan *Packet, 1024),
+		outChan:    make(chan *Packet, 1024),
 	}
+
+	server.sub = NewSubscribe(server.protocol, nsqaddr, server.outChan)
+
+	go server.inLoop()
+	go server.outLoop()
+
+	return server
 }
 
 func (server *TCPServer) GetClientByUid(uid int64) *Client {
@@ -82,8 +94,6 @@ func (server *TCPServer) UnRegisterClient(uid int64, dt string) {
 }
 
 func (server *TCPServer) Close() {
-	server.quit <- true
-
 	server.mutex.Lock()
 	for k, v := range server.uidClients {
 		v.Close()
@@ -94,6 +104,11 @@ func (server *TCPServer) Close() {
 		delete(server.dtClients, k)
 	}
 	server.mutex.Unlock()
+
+	server.quit <- true
+	close(server.quit)
+	close(server.inChan)
+	close(server.outChan)
 }
 
 func (server *TCPServer) Serve() {
@@ -132,4 +147,31 @@ func (server *TCPServer) handle(conn net.Conn) {
 	client := NewClient(server, conn)
 	//运行客户端
 	client.Do()
+}
+
+//处理客户端写入的消息
+func (server *TCPServer) inLoop() {
+	for {
+		select {
+		case <-server.quit:
+			return
+		case p := <-server.inChan:
+			//写到nsq分发
+			server.sub.Publish(p)
+		}
+	}
+}
+
+//服务端将信息写到客户端
+func (server *TCPServer) outLoop() {
+	for {
+		select {
+		case <-server.quit:
+			return
+		case p := <-server.outChan:
+			if c, ok := server.uidClients[p.rid]; ok {
+				c.sendChan <- p
+			}
+		}
+	}
 }

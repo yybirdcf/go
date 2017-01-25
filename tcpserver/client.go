@@ -183,6 +183,8 @@ func (client *Client) handleP2p(p *Packet) {
 		//没有通过鉴权
 		return
 	}
+
+	client.server.inChan <- p
 }
 
 func (client *Client) handleGroup(p *Packet) {
@@ -190,6 +192,8 @@ func (client *Client) handleGroup(p *Packet) {
 		//没有通过鉴权
 		return
 	}
+
+	client.server.inChan <- p
 }
 
 func (client *Client) handleRoom(p *Packet) {
@@ -197,6 +201,8 @@ func (client *Client) handleRoom(p *Packet) {
 		//没有通过鉴权
 		return
 	}
+
+	client.server.inChan <- p
 }
 
 func (client *Client) OnClose() bool {
@@ -206,6 +212,7 @@ func (client *Client) OnClose() bool {
 
 func (client *Client) Close() {
 	client.closeOnce.Do(func() {
+		client.server.UnRegisterClient(client.uid, client.deviceToken)
 		atomic.StoreInt32(&client.closeFlag, 1) //标记关闭
 		atomic.StoreInt32(&client.authFlag, 0)  //标记关闭
 		close(client.quit)
