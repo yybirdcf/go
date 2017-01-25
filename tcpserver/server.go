@@ -31,7 +31,7 @@ func NewTCPServer(listenaddr string, nsqaddr string) *TCPServer {
 		outChan:    make(chan *Packet, 1024),
 	}
 
-	server.sub = NewSubscribe(server.protocol, nsqaddr, server.outChan)
+	server.sub = NewSubscribe(server.protocol, nsqaddr, MESSAGE_TOPIC_DISPATCH, MESSAGE_CHANNEL_DISPATCH_IM, server.outChan)
 
 	go server.inLoop()
 	go server.outLoop()
@@ -159,7 +159,7 @@ func (server *TCPServer) inLoop() {
 			return
 		case p := <-server.inChan:
 			//写到nsq分发
-			server.sub.Publish(p)
+			server.sub.Publish(MESSAGE_TOPIC_LOGIC, p)
 		}
 	}
 }

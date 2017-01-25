@@ -8,20 +8,6 @@ import (
 	"sync/atomic"
 )
 
-var (
-	MESSAGE_TYPE_HEARTBEAT       = int32(1)  //心跳消息
-	MESSAGE_TYPE_PING            = int32(2)  //ping
-	MESSAGE_TYPE_PONG            = int32(3)  //pong
-	MESSAGE_TYPE_REGISTER        = int32(4)  //注册设备token
-	MESSAGE_TYPE_REGISTER_STATUS = int32(5)  //注册设备token回执
-	MESSAGE_TYPE_AUTH            = int32(6)  //鉴权消息
-	MESSAGE_TYPE_AUTH_STATUS     = int32(7)  //鉴权回执
-	MESSAGE_TYPE_P2P             = int32(8)  //单聊消息
-	MESSAGE_TYPE_ACK             = int32(9)  //消息ack回执
-	MESSAGE_TYPE_GROUP           = int32(10) //群聊消息
-	MESSAGE_TYPE_ROOM            = int32(11) //聊天室消息
-)
-
 type DeviceInfo struct {
 	token string
 }
