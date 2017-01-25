@@ -8,13 +8,18 @@ import (
 	"sync/atomic"
 )
 
+type ResponseInfo struct {
+	Status int64
+	Msg    string
+}
+
 type DeviceInfo struct {
-	token string
+	Token string
 }
 
 type AuthInfo struct {
-	uid   int64
-	token string
+	Uid   int64
+	Token string
 }
 
 type ClientCallback interface {
@@ -56,9 +61,19 @@ func (client *Client) OnAuth() bool {
 	return true
 }
 
+func buildResponseInfo(status int64, msg string) []byte {
+	resp := ResponseInfo{
+		Status: status,
+		Msg:    msg,
+	}
+
+	data, _ := json.Marshal(resp)
+	return data
+}
+
 //根据收到的消息类型，不同的处理逻辑
 func (client *Client) OnMessage(p *Packet) bool {
-	switch p.mt {
+	switch p.Mt {
 	case MESSAGE_TYPE_HEARTBEAT:
 		//心跳
 		client.handleHeartbeat(p)
@@ -81,7 +96,7 @@ func (client *Client) OnMessage(p *Packet) bool {
 		//聊天室消息
 		client.handleRoom(p)
 	default:
-		fmt.Printf("unknown message type: %d\n", p.mt)
+		fmt.Printf("unknown message type: %d\n", p.Mt)
 	}
 
 	return true
@@ -92,32 +107,48 @@ func (client *Client) handleHeartbeat(p *Packet) {
 }
 
 func (client *Client) handlePing(p *Packet) {
+	packet := &Packet{
+		Ver: p.Ver,
+		Mt:  MESSAGE_TYPE_PONG,
+		Mid: 0,
+		Sid: 0,
+		Rid: 0,
+	}
 
+	client.sendChan <- packet
 }
 
 func (client *Client) handleRegister(p *Packet) {
 	//从payload获取注册设备信息
 	deviceInfo := DeviceInfo{}
-	err := json.Unmarshal(p.pl, &deviceInfo)
-	if err != nil || deviceInfo.token == "" {
+	err := json.Unmarshal(p.Pl, &deviceInfo)
+	if err != nil || deviceInfo.Token == "" {
 		//输出注册失败信息
-
+		packet := &Packet{
+			Ver: p.Ver,
+			Mt:  MESSAGE_TYPE_REGISTER_STATUS,
+			Mid: 0,
+			Sid: 0,
+			Rid: 0,
+			Pl:  buildResponseInfo(-1, "params decode err"),
+		}
+		client.sendChan <- packet
 		return
 	}
 
-	c := client.server.GetClientByDt(deviceInfo.token)
+	c := client.server.GetClientByDt(deviceInfo.Token)
 	if c == nil {
 		//注册新的客户端
-		client.server.RegisterClientByDt(client, deviceInfo.token)
+		client.server.RegisterClientByDt(client, deviceInfo.Token)
 	} else {
 		//有老的客户端
 		if client == c {
 			//同一个客户端 do nothing
 		} else {
 			//不是同一个客户端，注销之前的客户端
-			client.server.UnRegisterClient(c.uid, deviceInfo.token)
+			client.server.UnRegisterClient(c.uid, deviceInfo.Token)
 			//注册新的客户端
-			client.server.RegisterClientByDt(client, deviceInfo.token)
+			client.server.RegisterClientByDt(client, deviceInfo.Token)
 		}
 	}
 
@@ -126,42 +157,79 @@ func (client *Client) handleRegister(p *Packet) {
 	}
 
 	//返回成功回执
+	packet := &Packet{
+		Ver: p.Ver,
+		Mt:  MESSAGE_TYPE_REGISTER_STATUS,
+		Mid: 0,
+		Sid: 0,
+		Rid: 0,
+		Pl:  buildResponseInfo(0, ""),
+	}
+	client.sendChan <- packet
 }
 
 func (client *Client) handleAuth(p *Packet) {
 	//获取鉴权信息
 	authInfo := AuthInfo{}
-	err := json.Unmarshal(p.pl, &authInfo)
-	if err != nil || authInfo.uid == 0 || authInfo.token == "" {
+	err := json.Unmarshal(p.Pl, &authInfo)
+	if err != nil || authInfo.Uid == 0 || authInfo.Token == "" {
 		//输出鉴权失败信息
-
+		packet := &Packet{
+			Ver: p.Ver,
+			Mt:  MESSAGE_TYPE_AUTH_STATUS,
+			Mid: 0,
+			Sid: 0,
+			Rid: 0,
+			Pl:  buildResponseInfo(-1, "params decode err"),
+		}
+		client.sendChan <- packet
 		return
 	}
 
 	//获取鉴权信息
 	//判断鉴权通过
+	if authInfo.Uid != 1 || authInfo.Token != "123" {
+		packet := &Packet{
+			Ver: p.Ver,
+			Mt:  MESSAGE_TYPE_AUTH_STATUS,
+			Mid: 0,
+			Sid: 0,
+			Rid: 0,
+			Pl:  buildResponseInfo(-2, "auth failed"),
+		}
+		client.sendChan <- packet
+	}
 
 	//通过
-	c := client.server.GetClientByUid(authInfo.uid)
+	c := client.server.GetClientByUid(authInfo.Uid)
 	if c == nil {
 		//注册新的客户端
-		client.server.RegisterClientByUid(client, authInfo.uid)
+		client.server.RegisterClientByUid(client, authInfo.Uid)
 	} else {
 		//有老的客户端
 		if client == c {
 			//同一个客户端 do nothing
 		} else {
 			//不是同一个客户端，注销之前的客户端
-			client.server.UnRegisterClient(authInfo.uid, c.deviceToken)
+			client.server.UnRegisterClient(authInfo.Uid, c.deviceToken)
 			//注册新的客户端
 			client.server.RegisterClientByDt(client, client.deviceToken)
-			client.server.RegisterClientByUid(client, authInfo.uid)
+			client.server.RegisterClientByUid(client, authInfo.Uid)
 		}
 	}
 
 	atomic.StoreInt32(&client.authFlag, 1)
 
 	//成功回执
+	packet := &Packet{
+		Ver: p.Ver,
+		Mt:  MESSAGE_TYPE_AUTH_STATUS,
+		Mid: 0,
+		Sid: 0,
+		Rid: 0,
+		Pl:  buildResponseInfo(0, ""),
+	}
+	client.sendChan <- packet
 }
 
 func (client *Client) handleP2p(p *Packet) {

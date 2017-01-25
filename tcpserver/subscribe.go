@@ -68,5 +68,5 @@ func (sub *Subscribe) Publish(topic string, p *Packet) {
 }
 
 func (sub *Subscribe) Close() {
-	sub.consumer.StopChan <- 1
+	sub.consumer.Stop()
 }

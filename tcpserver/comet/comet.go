@@ -12,7 +12,7 @@ import (
 func main() {
 	var (
 		listenAddr = flag.String("listen.addr", ":12000", "tcp listen address")
-		nsqdAddr   = flag.String("nsqd.addr", "", "nsqd address")
+		nsqdAddr   = flag.String("nsqd.addr", ":4150", "nsqd address")
 	)
 	flag.Parse()
 
@@ -20,12 +20,10 @@ func main() {
 	defer func() {
 		server.Close()
 	}()
-
 	errc := make(chan error)
 	go func() {
 		errc <- fmt.Errorf("%s", server.Serve())
 	}()
-
 	// Interrupt handler.
 	go func() {
 		c := make(chan os.Signal, 1)

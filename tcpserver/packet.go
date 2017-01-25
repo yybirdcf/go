@@ -32,13 +32,13 @@ type Protocol interface {
 
 //消息结构体
 type Packet struct {
-	ver int32  //协议版本号
-	mt  int32  //消息类型
-	mid int64  //消息id
-	sid int64  //发送者id
-	rid int64  //接收者id
-	ext []byte //附加属性字典
-	pl  []byte //内容payload
+	Ver int32  //协议版本号
+	Mt  int32  //消息类型
+	Mid int64  //消息id
+	Sid int64  //发送者id
+	Rid int64  //接收者id
+	Ext []byte //附加属性字典
+	Pl  []byte //内容payload
 }
 
 type CustomProto struct {
@@ -52,7 +52,7 @@ func (proto *CustomProto) ReadPacket(conn net.Conn) (*Packet, error) {
 		fmt.Printf("read packet length error: %s\n", err.Error())
 		return nil, err
 	}
-
+	fmt.Printf("%+v\n", buf)
 	var length int32
 	buffer := bytes.NewBuffer(buf)
 	binary.Read(buffer, binary.BigEndian, &length)
@@ -64,12 +64,13 @@ func (proto *CustomProto) ReadPacket(conn net.Conn) (*Packet, error) {
 		fmt.Printf("read packet body error: %s\n", err.Error())
 		return nil, err
 	}
-
+	fmt.Printf("%+v\n", buf)
 	return proto.Unserialize(buf)
 }
 
 func (proto *CustomProto) WritePacket(conn net.Conn, p *Packet) error {
 	buf := proto.Serialize(p)
+	fmt.Printf("%+v\n", buf)
 	n, err := conn.Write(buf)
 	if err != nil {
 		fmt.Printf("socket write error: %s\n", err.Error())
@@ -90,27 +91,27 @@ func (proto *CustomProto) Serialize(p *Packet) []byte {
 
 	var length, extLength, plLength int32
 
-	extLength = int32(len(p.ext))
-	plLength = int32(len(p.pl))
+	extLength = int32(len(p.Ext))
+	plLength = int32(len(p.Pl))
 	length = 40 + extLength + plLength
 	//写入长度
 	binary.Write(buffer, binary.BigEndian, length)
 	//写入协议版本号
-	binary.Write(buffer, binary.BigEndian, p.ver)
+	binary.Write(buffer, binary.BigEndian, p.Ver)
 	//写入消息类型
-	binary.Write(buffer, binary.BigEndian, p.mt)
+	binary.Write(buffer, binary.BigEndian, p.Mt)
 	//写入消息id
-	binary.Write(buffer, binary.BigEndian, p.mid)
+	binary.Write(buffer, binary.BigEndian, p.Mid)
 	//写入发送者id
-	binary.Write(buffer, binary.BigEndian, p.sid)
+	binary.Write(buffer, binary.BigEndian, p.Sid)
 	//写入接收者id
-	binary.Write(buffer, binary.BigEndian, p.rid)
+	binary.Write(buffer, binary.BigEndian, p.Rid)
 	//写入ext属性长度
 	binary.Write(buffer, binary.BigEndian, extLength)
 	//写入payload长度
 	binary.Write(buffer, binary.BigEndian, plLength)
-	buffer.Write(p.ext)
-	buffer.Write(p.pl)
+	buffer.Write(p.Ext)
+	buffer.Write(p.Pl)
 
 	buf := buffer.Bytes()
 
@@ -120,32 +121,32 @@ func (proto *CustomProto) Serialize(p *Packet) []byte {
 func (proto *CustomProto) Unserialize(data []byte) (*Packet, error) {
 	//先读取单条数据长度 2^32
 	l := len(data)
-	if l < 50 {
+	if l < 40 {
 		return nil, errors.New("packet unserialize error")
 	}
 
 	p := Packet{}
 	buffer := bytes.NewBuffer(data)
 	//读取4字节协议版本号
-	binary.Read(buffer, binary.BigEndian, &p.ver)
+	binary.Read(buffer, binary.BigEndian, &p.Ver)
 	//读取4字节消息类型
-	binary.Read(buffer, binary.BigEndian, &p.mt)
+	binary.Read(buffer, binary.BigEndian, &p.Mt)
 	//读取8字节消息id
-	binary.Read(buffer, binary.BigEndian, &p.mid)
+	binary.Read(buffer, binary.BigEndian, &p.Mid)
 	//读取8字节发送者id
-	binary.Read(buffer, binary.BigEndian, &p.sid)
+	binary.Read(buffer, binary.BigEndian, &p.Sid)
 	//读取8字节接收者id
-	binary.Read(buffer, binary.BigEndian, &p.rid)
+	binary.Read(buffer, binary.BigEndian, &p.Rid)
 	var extLength, plLength int32
 	//读取4字节ext属性长度
 	binary.Read(buffer, binary.BigEndian, &extLength)
 	//读取4字节payload长度
 	binary.Read(buffer, binary.BigEndian, &plLength)
 
-	p.ext = make([]byte, extLength)
-	p.pl = make([]byte, plLength)
-	buffer.Read(p.ext)
-	buffer.Read(p.pl)
+	p.Ext = make([]byte, extLength)
+	p.Pl = make([]byte, plLength)
+	buffer.Read(p.Ext)
+	buffer.Read(p.Pl)
 
 	return &p, nil
 }

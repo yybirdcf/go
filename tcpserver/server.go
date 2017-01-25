@@ -108,7 +108,6 @@ func (server *TCPServer) Close() {
 
 	server.sub.Close()
 	server.quit <- true
-
 	close(server.quit)
 	close(server.inChan)
 	close(server.outChan)
@@ -171,7 +170,7 @@ func (server *TCPServer) outLoop() {
 		case <-server.quit:
 			return
 		case p := <-server.outChan:
-			if c, ok := server.uidClients[p.rid]; ok {
+			if c, ok := server.uidClients[p.Rid]; ok {
 				c.sendChan <- p
 			}
 		}

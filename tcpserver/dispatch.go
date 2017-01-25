@@ -46,7 +46,7 @@ func (d *Dispatch) Run() {
 
 //处理消息分发
 func (d *Dispatch) handle(p *Packet) {
-	switch p.mt {
+	switch p.Mt {
 	case MESSAGE_TYPE_P2P:
 		//单聊
 		d.handleP2p(p)
@@ -57,7 +57,7 @@ func (d *Dispatch) handle(p *Packet) {
 		//聊天室消息
 		d.handleRoom(p)
 	default:
-		fmt.Printf("unknown message type: %d\n", p.mt)
+		fmt.Printf("unknown message type: %d\n", p.Mt)
 	}
 }
 
@@ -66,7 +66,7 @@ func (d *Dispatch) handleP2p(p *Packet) {
 		fmt.Println(err)
 		return
 	} else {
-		p.mid = id
+		p.Mid = id
 	}
 
 	d.sub.Publish(MESSAGE_TOPIC_DISPATCH, p)
@@ -76,24 +76,24 @@ func (d *Dispatch) handleGroup(p *Packet) {
 	//获取群成员
 	members := []int64{}
 	for _, member := range members {
-		if member == p.sid {
+		if member == p.Sid {
 			continue
 		}
 
 		packet := &Packet{
-			ver: p.ver,
-			mt:  p.mt,
-			mid: 0,
-			sid: p.rid,
-			rid: member,
-			ext: p.ext,
-			pl:  p.pl,
+			Ver: p.Ver,
+			Mt:  p.Mt,
+			Mid: 0,
+			Sid: p.Rid,
+			Rid: member,
+			Ext: p.Ext,
+			Pl:  p.Pl,
 		}
 		if id, err := d.iw.NextId(); err != nil {
 			fmt.Println(err)
 			return
 		} else {
-			packet.mid = id
+			packet.Mid = id
 		}
 
 		d.sub.Publish(MESSAGE_TOPIC_DISPATCH, packet)
@@ -104,24 +104,24 @@ func (d *Dispatch) handleRoom(p *Packet) {
 	//获取聊天室成员
 	members := []int64{}
 	for _, member := range members {
-		if member == p.sid {
+		if member == p.Sid {
 			continue
 		}
 
 		packet := &Packet{
-			ver: p.ver,
-			mt:  p.mt,
-			mid: 0,
-			sid: p.rid,
-			rid: member,
-			ext: p.ext,
-			pl:  p.pl,
+			Ver: p.Ver,
+			Mt:  p.Mt,
+			Mid: 0,
+			Sid: p.Rid,
+			Rid: member,
+			Ext: p.Ext,
+			Pl:  p.Pl,
 		}
 		if id, err := d.iw.NextId(); err != nil {
 			fmt.Println(err)
 			return
 		} else {
-			packet.mid = id
+			packet.Mid = id
 		}
 
 		d.sub.Publish(MESSAGE_TOPIC_DISPATCH, packet)
