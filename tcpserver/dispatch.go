@@ -3,7 +3,9 @@ package tcpserver
 import (
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/garyburd/redigo/redis"
 	"github.com/zheng-ji/goSnowFlake"
 )
 
@@ -13,10 +15,11 @@ type Dispatch struct {
 	sub     *Subscribe
 	outChan chan *Packet
 	quit    chan bool
+	pool    *redis.Pool
 }
 
 //0 < workerId < 1024
-func NewDispatch(workerId int64, nsqaddr string) *Dispatch {
+func NewDispatch(workerId int64, nsqaddr string, host string, pwd string, db int) *Dispatch {
 	iw, err := goSnowFlake.NewIdWorker(workerId)
 	if err != nil {
 		fmt.Println(err)
@@ -27,6 +30,26 @@ func NewDispatch(workerId int64, nsqaddr string) *Dispatch {
 		iw:      iw,
 		outChan: make(chan *Packet, 1024),
 		quit:    make(chan bool),
+		pool: &redis.Pool{
+			MaxIdle:     5,
+			IdleTimeout: 300 * time.Second,
+			// Other pool configuration not shown in this example.
+			Dial: func() (redis.Conn, error) {
+				c, err := redis.Dial("tcp", host)
+				if err != nil {
+					return nil, err
+				}
+				if _, err := c.Do("AUTH", pwd); err != nil {
+					c.Close()
+					return nil, err
+				}
+				if _, err := c.Do("SELECT", db); err != nil {
+					c.Close()
+					return nil, err
+				}
+				return c, nil
+			},
+		},
 	}
 	d.sub = NewSubscribe(&CustomProto{}, nsqaddr, MESSAGE_TOPIC_LOGIC, MESSAGE_CHANNEL_LOGIC_IM, d.outChan)
 
@@ -61,6 +84,15 @@ func (d *Dispatch) handle(p *Packet) {
 	}
 }
 
+func (d *Dispatch) isOnline(uid int64) bool {
+	conn := d.pool.Get()
+	defer conn.Close()
+
+	key := fmt.Sprintf("%s%d", KEY_PREFIX_USER_ONLINE, uid)
+	b, _ := redis.Bool(conn.Do("EXISTS", key))
+	return b
+}
+
 func (d *Dispatch) handleP2p(p *Packet) {
 	if id, err := d.iw.NextId(); err != nil {
 		fmt.Println(err)
@@ -69,7 +101,11 @@ func (d *Dispatch) handleP2p(p *Packet) {
 		p.Mid = id
 	}
 
-	d.sub.Publish(MESSAGE_TOPIC_DISPATCH, p)
+	if d.isOnline(p.Rid) {
+		d.sub.Publish(MESSAGE_TOPIC_DISPATCH, p)
+	} else {
+		d.sub.Publish(MESSAGE_TOPIC_OFFLINE, p)
+	}
 }
 
 func (d *Dispatch) handleGroup(p *Packet) {
@@ -91,7 +127,11 @@ func (d *Dispatch) handleGroup(p *Packet) {
 				Pl:  p.Pl,
 			}
 
-			d.sub.Publish(MESSAGE_TOPIC_DISPATCH, packet)
+			if d.isOnline(packet.Rid) {
+				d.sub.Publish(MESSAGE_TOPIC_DISPATCH, packet)
+			} else {
+				d.sub.Publish(MESSAGE_TOPIC_OFFLINE, packet)
+			}
 		}
 	}
 }
@@ -115,7 +155,11 @@ func (d *Dispatch) handleRoom(p *Packet) {
 				Pl:  p.Pl,
 			}
 
-			d.sub.Publish(MESSAGE_TOPIC_DISPATCH, packet)
+			if d.isOnline(packet.Rid) {
+				d.sub.Publish(MESSAGE_TOPIC_DISPATCH, packet)
+			} else {
+				d.sub.Publish(MESSAGE_TOPIC_OFFLINE, packet)
+			}
 		}
 	}
 }

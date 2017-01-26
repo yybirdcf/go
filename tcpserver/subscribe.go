@@ -8,12 +8,14 @@ import (
 )
 
 var (
-	MESSAGE_TOPIC_LOGIC            = "message_topic_logic"           //后端消息处理服务
-	MESSAGE_CHANNEL_LOGIC_IM       = "message_channel_logic_im"      //处理聊天消息
-	MESSAGE_TOPIC_DISPATCH         = "message_topic_dispatch"        //服务器分发消息
-	MESSAGE_CHANNEL_DISPATCH_IM    = "message_channel_dispatch_im"   //分发聊天消息
-	MESSAGE_CHANNEL_DISPATCH_STORE = "message_channel_offline_store" //离线消息存储
-	MESSAGE_CHANNEL_DISPATCH_PUSH  = "message_channel_offline_push"  //离线消息推送
+	MESSAGE_TOPIC_LOGIC            = "message_topic_logic"            //后端消息处理服务
+	MESSAGE_CHANNEL_LOGIC_IM       = "message_channel_logic_im"       //处理聊天消息
+	MESSAGE_TOPIC_DISPATCH         = "message_topic_dispatch"         //服务器分发消息
+	MESSAGE_CHANNEL_DISPATCH_IM    = "message_channel_dispatch_im"    //分发在线聊天消息
+	MESSAGE_CHANNEL_DISPATCH_STORE = "message_channel_dispatch_store" //在线消息存储
+	MESSAGE_TOPIC_OFFLINE          = "message_topic_offline"          //离线消息推送
+	MESSAGE_CHANNEL_OFFLINE_PUSH   = "message_channel_offline_push"   //离线消息推送
+	MESSAGE_CHANNEL_OFFLINE_STORE  = "message_channel_offline_store"  //离线消息存储
 )
 
 type Subscribe struct {

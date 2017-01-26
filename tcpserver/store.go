@@ -4,18 +4,22 @@ import "fmt"
 
 //存储消息服务
 type StoreSrv struct {
-	sub     *Subscribe
-	outChan chan *Packet
-	quit    chan bool
+	dispatchSub  *Subscribe
+	offlineSub   *Subscribe
+	dispatchChan chan *Packet
+	offlineChan  chan *Packet
+	quit         chan bool
 }
 
 func NewStoreSrv(nsqaddr string) *StoreSrv {
 	ps := &StoreSrv{
-		outChan: make(chan *Packet, 1024),
-		quit:    make(chan bool),
+		dispatchChan: make(chan *Packet, 1024),
+		offlineChan:  make(chan *Packet, 1024),
+		quit:         make(chan bool),
 	}
 
-	ps.sub = NewSubscribe(&CustomProto{}, nsqaddr, MESSAGE_TOPIC_DISPATCH, MESSAGE_CHANNEL_DISPATCH_STORE, ps.outChan)
+	ps.dispatchSub = NewSubscribe(&CustomProto{}, nsqaddr, MESSAGE_TOPIC_DISPATCH, MESSAGE_CHANNEL_DISPATCH_STORE, ps.dispatchChan)
+	ps.offlineSub = NewSubscribe(&CustomProto{}, nsqaddr, MESSAGE_TOPIC_OFFLINE, MESSAGE_CHANNEL_OFFLINE_STORE, ps.offlineChan)
 
 	return ps
 }
@@ -23,7 +27,9 @@ func NewStoreSrv(nsqaddr string) *StoreSrv {
 func (ss *StoreSrv) Run() {
 	for {
 		select {
-		case p := <-ss.outChan:
+		case p := <-ss.dispatchChan:
+			ss.handle(p)
+		case p := <-ss.offlineChan:
 			ss.handle(p)
 		case <-ss.quit:
 			return

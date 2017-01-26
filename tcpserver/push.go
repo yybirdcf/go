@@ -41,7 +41,7 @@ func NewPushSrv(nsqaddr string, host string, pwd string, db int) *PushSrv {
 		},
 	}
 
-	ps.sub = NewSubscribe(&CustomProto{}, nsqaddr, MESSAGE_TOPIC_DISPATCH, MESSAGE_CHANNEL_DISPATCH_PUSH, ps.outChan)
+	ps.sub = NewSubscribe(&CustomProto{}, nsqaddr, MESSAGE_TOPIC_OFFLINE, MESSAGE_CHANNEL_OFFLINE_PUSH, ps.outChan)
 
 	return ps
 }
