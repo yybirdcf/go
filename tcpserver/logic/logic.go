@@ -12,7 +12,7 @@ import (
 func main() {
 	var (
 		workerId = flag.Int64("snowflake.workerId", 1, "0 < workerId < 1024")
-		nsqdAddr = flag.String("nsqd.addr", "", "nsqd address")
+		nsqdAddr = flag.String("nsqd.addr", ":4150", "nsqd address")
 	)
 	flag.Parse()
 

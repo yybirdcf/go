@@ -80,6 +80,7 @@ func (server *TCPServer) RegisterClientByDt(client *Client, dt string) {
 }
 
 func (server *TCPServer) UnRegisterClient(uid int64, dt string) {
+	fmt.Println("UnRegisterClient")
 	server.mutex.Lock()
 	defer server.mutex.Unlock()
 

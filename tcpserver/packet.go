@@ -68,14 +68,21 @@ func (proto *CustomProto) ReadPacket(conn net.Conn) (*Packet, error) {
 
 func (proto *CustomProto) WritePacket(conn net.Conn, p *Packet) error {
 	buf := proto.Serialize(p)
-	n, err := conn.Write(buf)
+	length := len(buf)
+	buffer := new(bytes.Buffer)
+	//写入长度
+	binary.Write(buffer, binary.BigEndian, int32(length))
+	buffer.Write(buf)
+
+	b := buffer.Bytes()
+	n, err := conn.Write(b)
 	if err != nil {
 		fmt.Printf("socket write error: %s\n", err.Error())
 		return err
 	}
 
-	if n != len(buf) {
-		fmt.Printf("socket write less: %d, %d\n", n, len(buf))
+	if n != len(b) {
+		fmt.Printf("socket write less: %d, %d\n", n, len(b))
 		return errors.New("socket write less")
 	}
 
@@ -84,15 +91,12 @@ func (proto *CustomProto) WritePacket(conn net.Conn, p *Packet) error {
 
 func (proto *CustomProto) Serialize(p *Packet) []byte {
 	//写入消息总长度 4 + 4 + 8 + 8 + 8 + 4 + 4 + len(ext) + len(payload)
-	buffer := new(bytes.Buffer)
-
-	var length, extLength, plLength int32
+	var extLength, plLength int32
 
 	extLength = int32(len(p.Ext))
 	plLength = int32(len(p.Pl))
-	length = 40 + extLength + plLength
-	//写入长度
-	binary.Write(buffer, binary.BigEndian, length)
+
+	buffer := new(bytes.Buffer)
 	//写入协议版本号
 	binary.Write(buffer, binary.BigEndian, p.Ver)
 	//写入消息类型

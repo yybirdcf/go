@@ -136,6 +136,8 @@ func (client *Client) handleRegister(p *Packet) {
 		return
 	}
 
+	fmt.Println(5555)
+	fmt.Println(deviceInfo.Token)
 	c := client.server.GetClientByDt(deviceInfo.Token)
 	if c == nil {
 		//注册新的客户端
@@ -191,7 +193,7 @@ func (client *Client) handleAuth(p *Packet) {
 
 	//获取鉴权信息
 	//判断鉴权通过
-	if authInfo.Uid != 1 || authInfo.Token != "123" {
+	if authInfo.Token != "123" {
 		packet := &Packet{
 			Ver: p.Ver,
 			Mt:  MESSAGE_TYPE_AUTH_STATUS,
@@ -215,6 +217,7 @@ func (client *Client) handleAuth(p *Packet) {
 		} else {
 			//不是同一个客户端，注销之前的客户端
 			c.Close()
+			fmt.Println(44444)
 			client.server.UnRegisterClient(authInfo.Uid, c.deviceToken)
 			//注册新的客户端
 			client.server.RegisterClientByDt(client, client.deviceToken)

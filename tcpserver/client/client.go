@@ -14,6 +14,8 @@ import (
 func main() {
 	var (
 		listenAddr = flag.String("listen.addr", ":12000", "tcp listen address")
+		uid        = flag.Int64("sid", 1, "user id")
+		rid        = flag.Int64("rid", 2, "user id")
 	)
 	flag.Parse()
 
@@ -26,7 +28,7 @@ func main() {
 
 	//绑定设备信息
 	deviceToken := tcpserver.DeviceInfo{
-		Token: "12345678",
+		Token: fmt.Sprintf("%d", *uid),
 	}
 
 	bs, err := json.Marshal(deviceToken)
@@ -79,7 +81,7 @@ func main() {
 				if resp.Status == 0 {
 					//鉴权
 					authInfo := tcpserver.AuthInfo{
-						Uid:   1,
+						Uid:   *uid,
 						Token: "123",
 					}
 
@@ -101,7 +103,17 @@ func main() {
 				}
 			} else if p.Mt == tcpserver.MESSAGE_TYPE_AUTH_STATUS {
 				json.Unmarshal(p.Pl, &resp)
-				fmt.Printf("%+v\n", resp)
+				if resp.Status == 0 {
+					p := &tcpserver.Packet{
+						Ver: 1,
+						Mt:  tcpserver.MESSAGE_TYPE_P2P,
+						Mid: 0,
+						Sid: *uid,
+						Rid: *rid,
+					}
+
+					proto.WritePacket(conn, p)
+				}
 			}
 		}
 	}()
