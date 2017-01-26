@@ -36,7 +36,7 @@ type Client struct {
 	conn        net.Conn
 	sendChan    chan *Packet //发送数据到客户端
 	receiveChan chan *Packet //从客户端接收数据
-	quit        chan struct{}
+	quit        chan bool
 	authFlag    int32
 	closeFlag   int32
 	closeOnce   sync.Once //保证调用一次close
@@ -48,7 +48,7 @@ func NewClient(s *TCPServer, c net.Conn) *Client {
 		conn:        c,
 		sendChan:    make(chan *Packet, 1024),
 		receiveChan: make(chan *Packet, 1024),
-		quit:        make(chan struct{}),
+		quit:        make(chan bool),
 	}
 }
 
@@ -277,6 +277,7 @@ func (client *Client) Close() {
 		client.server.UnRegisterClient(client.uid, client.deviceToken)
 		atomic.StoreInt32(&client.closeFlag, 1) //标记关闭
 		atomic.StoreInt32(&client.authFlag, 0)  //标记关闭
+		client.quit <- true
 		close(client.quit)
 		close(client.sendChan)
 		close(client.receiveChan)

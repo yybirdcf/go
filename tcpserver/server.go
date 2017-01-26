@@ -80,7 +80,6 @@ func (server *TCPServer) RegisterClientByDt(client *Client, dt string) {
 }
 
 func (server *TCPServer) UnRegisterClient(uid int64, dt string) {
-	fmt.Println("UnRegisterClient")
 	server.mutex.Lock()
 	defer server.mutex.Unlock()
 
@@ -96,8 +95,7 @@ func (server *TCPServer) UnRegisterClient(uid int64, dt string) {
 func (server *TCPServer) Close() {
 	server.mutex.Lock()
 	defer server.mutex.Unlock()
-	for k, v := range server.uidClients {
-		v.Close()
+	for k, _ := range server.uidClients {
 		delete(server.uidClients, k)
 	}
 
@@ -105,7 +103,6 @@ func (server *TCPServer) Close() {
 		delete(server.dtClients, k)
 	}
 
-	server.sub.Close()
 	server.quit <- true
 	close(server.quit)
 	close(server.inChan)
