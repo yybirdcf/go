@@ -8,6 +8,11 @@ import (
 	"sync/atomic"
 )
 
+var (
+	KEY_PREFIX_USER_ONLINE   = "user#online#"
+	KEY_PREFIX_DEVICE_ONLINE = "device#online#"
+)
+
 type ResponseInfo struct {
 	Status int64
 	Msg    string
@@ -24,6 +29,7 @@ type AuthInfo struct {
 
 type ClientCallback interface {
 	OnConnect() bool
+	OnRegister() bool
 	OnAuth() bool
 	OnMessage(*Packet) bool
 	OnClose() bool
@@ -57,7 +63,23 @@ func (client *Client) OnConnect() bool {
 	return true
 }
 
+func (client *Client) OnRegister() bool {
+	conn := client.server.pool.Get()
+	defer conn.Close()
+
+	//写入设备在线
+	key := fmt.Sprintf("%s%s", KEY_PREFIX_DEVICE_ONLINE, client.deviceToken)
+	conn.Do("SET", key, client.deviceToken)
+	return true
+}
+
 func (client *Client) OnAuth() bool {
+	conn := client.server.pool.Get()
+	defer conn.Close()
+
+	//写入用户在线
+	key := fmt.Sprintf("%s%d", KEY_PREFIX_USER_ONLINE, client.uid)
+	conn.Do("SET", key, client.uid)
 	return true
 }
 
@@ -136,7 +158,6 @@ func (client *Client) handleRegister(p *Packet) {
 		return
 	}
 
-	fmt.Println(5555)
 	fmt.Println(deviceInfo.Token)
 	c := client.server.GetClientByDt(deviceInfo.Token)
 	if c == nil {
@@ -160,6 +181,7 @@ func (client *Client) handleRegister(p *Packet) {
 	}
 
 	client.deviceToken = deviceInfo.Token
+	client.OnRegister()
 
 	//返回成功回执
 	packet := &Packet{
@@ -228,6 +250,8 @@ func (client *Client) handleAuth(p *Packet) {
 	atomic.StoreInt32(&client.authFlag, 1)
 
 	client.uid = authInfo.Uid
+	client.OnAuth()
+
 	//成功回执
 	packet := &Packet{
 		Ver: p.Ver,
@@ -269,6 +293,18 @@ func (client *Client) handleRoom(p *Packet) {
 
 func (client *Client) OnClose() bool {
 	fmt.Println("connect close success")
+
+	conn := client.server.pool.Get()
+	defer conn.Close()
+
+	//删除用户在线
+	key := fmt.Sprintf("%s%d", KEY_PREFIX_USER_ONLINE, client.uid)
+	conn.Do("DEL", key)
+
+	//删除设备在线
+	key = fmt.Sprintf("%s%s", KEY_PREFIX_DEVICE_ONLINE, client.deviceToken)
+	conn.Do("DEL", key)
+
 	return true
 }
 

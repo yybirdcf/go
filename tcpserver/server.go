@@ -6,6 +6,9 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
+
+	"github.com/garyburd/redigo/redis"
 )
 
 type TCPServer struct {
@@ -18,9 +21,10 @@ type TCPServer struct {
 	dtClients  map[string]*Client //设备token对应客户端映射表
 	inChan     chan *Packet       //客户端写入到服务器
 	outChan    chan *Packet       //服务器下发到客户端
+	pool       *redis.Pool
 }
 
-func NewTCPServer(listenaddr string, nsqaddr string) *TCPServer {
+func NewTCPServer(listenaddr string, nsqaddr string, host string, pwd string, db int) *TCPServer {
 	server := &TCPServer{
 		address:    listenaddr,
 		quit:       make(chan bool),
@@ -29,6 +33,26 @@ func NewTCPServer(listenaddr string, nsqaddr string) *TCPServer {
 		dtClients:  make(map[string]*Client),
 		inChan:     make(chan *Packet, 1024),
 		outChan:    make(chan *Packet, 1024),
+		pool: &redis.Pool{
+			MaxIdle:     5,
+			IdleTimeout: 300 * time.Second,
+			// Other pool configuration not shown in this example.
+			Dial: func() (redis.Conn, error) {
+				c, err := redis.Dial("tcp", host)
+				if err != nil {
+					return nil, err
+				}
+				if _, err := c.Do("AUTH", pwd); err != nil {
+					c.Close()
+					return nil, err
+				}
+				if _, err := c.Do("SELECT", db); err != nil {
+					c.Close()
+					return nil, err
+				}
+				return c, nil
+			},
+		},
 	}
 
 	server.sub = NewSubscribe(server.protocol, nsqaddr, MESSAGE_TOPIC_DISPATCH, MESSAGE_CHANNEL_DISPATCH_IM, server.outChan)
