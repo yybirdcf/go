@@ -80,23 +80,19 @@ func (d *Dispatch) handleGroup(p *Packet) {
 			continue
 		}
 
-		packet := &Packet{
-			Ver: p.Ver,
-			Mt:  p.Mt,
-			Mid: 0,
-			Sid: p.Rid,
-			Rid: member,
-			Ext: p.Ext,
-			Pl:  p.Pl,
-		}
-		if id, err := d.iw.NextId(); err != nil {
-			fmt.Println(err)
-			return
-		} else {
-			packet.Mid = id
-		}
+		if id, err := d.iw.NextId(); err == nil {
+			packet := &Packet{
+				Ver: p.Ver,
+				Mt:  p.Mt,
+				Mid: id,
+				Sid: p.Rid,
+				Rid: member,
+				Ext: p.Ext,
+				Pl:  p.Pl,
+			}
 
-		d.sub.Publish(MESSAGE_TOPIC_DISPATCH, packet)
+			d.sub.Publish(MESSAGE_TOPIC_DISPATCH, packet)
+		}
 	}
 }
 
@@ -108,23 +104,19 @@ func (d *Dispatch) handleRoom(p *Packet) {
 			continue
 		}
 
-		packet := &Packet{
-			Ver: p.Ver,
-			Mt:  p.Mt,
-			Mid: 0,
-			Sid: p.Rid,
-			Rid: member,
-			Ext: p.Ext,
-			Pl:  p.Pl,
-		}
-		if id, err := d.iw.NextId(); err != nil {
-			fmt.Println(err)
-			return
-		} else {
-			packet.Mid = id
-		}
+		if id, err := d.iw.NextId(); err == nil {
+			packet := &Packet{
+				Ver: p.Ver,
+				Mt:  p.Mt,
+				Mid: id,
+				Sid: p.Rid,
+				Rid: member,
+				Ext: p.Ext,
+				Pl:  p.Pl,
+			}
 
-		d.sub.Publish(MESSAGE_TOPIC_DISPATCH, packet)
+			d.sub.Publish(MESSAGE_TOPIC_DISPATCH, packet)
+		}
 	}
 }
 
