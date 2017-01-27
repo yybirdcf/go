@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"go/tcpserver"
 	"os"
@@ -10,13 +9,8 @@ import (
 )
 
 func main() {
-	var (
-		listenAddr = flag.String("listen.addr", ":12000", "tcp listen address")
-		nsqdAddr   = flag.String("nsqd.addr", ":4150", "nsqd address")
-	)
-	flag.Parse()
-
-	server := tcpserver.NewTCPServer(*listenAddr, *nsqdAddr)
+	config := tcpserver.NewCometConfig()
+	server := tcpserver.NewTCPServer(config)
 	defer func() {
 		server.Close()
 	}()

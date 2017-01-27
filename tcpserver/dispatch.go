@@ -19,8 +19,8 @@ type Dispatch struct {
 }
 
 //0 < workerId < 1024
-func NewDispatch(workerId int64, nsqaddr string, host string, pwd string, db int) *Dispatch {
-	iw, err := goSnowFlake.NewIdWorker(workerId)
+func NewDispatch(config *DispatchConfig) *Dispatch {
+	iw, err := goSnowFlake.NewIdWorker(config.WorkerId)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -35,15 +35,15 @@ func NewDispatch(workerId int64, nsqaddr string, host string, pwd string, db int
 			IdleTimeout: 300 * time.Second,
 			// Other pool configuration not shown in this example.
 			Dial: func() (redis.Conn, error) {
-				c, err := redis.Dial("tcp", host)
+				c, err := redis.Dial("tcp", config.RedisHost)
 				if err != nil {
 					return nil, err
 				}
-				if _, err := c.Do("AUTH", pwd); err != nil {
+				if _, err := c.Do("AUTH", config.RedisPwd); err != nil {
 					c.Close()
 					return nil, err
 				}
-				if _, err := c.Do("SELECT", db); err != nil {
+				if _, err := c.Do("SELECT", config.RedisDb); err != nil {
 					c.Close()
 					return nil, err
 				}
@@ -51,7 +51,7 @@ func NewDispatch(workerId int64, nsqaddr string, host string, pwd string, db int
 			},
 		},
 	}
-	d.sub = NewSubscribe(&CustomProto{}, nsqaddr, MESSAGE_TOPIC_LOGIC, MESSAGE_CHANNEL_LOGIC_IM, d.outChan)
+	d.sub = NewSubscribe(&CustomProto{}, config.NsqdHost, MESSAGE_TOPIC_LOGIC, MESSAGE_CHANNEL_LOGIC_IM, d.outChan)
 
 	return d
 }

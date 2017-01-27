@@ -24,9 +24,9 @@ type TCPServer struct {
 	pool       *redis.Pool
 }
 
-func NewTCPServer(listenaddr string, nsqaddr string, host string, pwd string, db int) *TCPServer {
+func NewTCPServer(config *CometConfig) *TCPServer {
 	server := &TCPServer{
-		address:    listenaddr,
+		address:    config.TcpHost,
 		quit:       make(chan bool),
 		protocol:   &CustomProto{},
 		uidClients: make(map[int64]*Client),
@@ -38,15 +38,15 @@ func NewTCPServer(listenaddr string, nsqaddr string, host string, pwd string, db
 			IdleTimeout: 300 * time.Second,
 			// Other pool configuration not shown in this example.
 			Dial: func() (redis.Conn, error) {
-				c, err := redis.Dial("tcp", host)
+				c, err := redis.Dial("tcp", config.RedisHost)
 				if err != nil {
 					return nil, err
 				}
-				if _, err := c.Do("AUTH", pwd); err != nil {
+				if _, err := c.Do("AUTH", config.RedisPwd); err != nil {
 					c.Close()
 					return nil, err
 				}
-				if _, err := c.Do("SELECT", db); err != nil {
+				if _, err := c.Do("SELECT", config.RedisDb); err != nil {
 					c.Close()
 					return nil, err
 				}
@@ -55,7 +55,7 @@ func NewTCPServer(listenaddr string, nsqaddr string, host string, pwd string, db
 		},
 	}
 
-	server.sub = NewSubscribe(server.protocol, nsqaddr, MESSAGE_TOPIC_DISPATCH, MESSAGE_CHANNEL_DISPATCH_IM, server.outChan)
+	server.sub = NewSubscribe(server.protocol, config.NsqdHost, MESSAGE_TOPIC_DISPATCH, MESSAGE_CHANNEL_DISPATCH_IM, server.outChan)
 
 	go server.inLoop()
 	go server.outLoop()

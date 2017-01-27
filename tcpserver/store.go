@@ -23,7 +23,7 @@ type StoreSrv struct {
 	pool         *redis.Pool
 }
 
-func NewStoreSrv(nsqaddr string, host string, user string, pwd string, database string, charset string, redisHost string, redisPwd string, redisDb int) *StoreSrv {
+func NewStoreSrv(config *StoreConfig) *StoreSrv {
 	ps := &StoreSrv{
 		dispatchChan: make(chan *Packet, 1024),
 		offlineChan:  make(chan *Packet, 1024),
@@ -33,15 +33,15 @@ func NewStoreSrv(nsqaddr string, host string, user string, pwd string, database 
 			IdleTimeout: 300 * time.Second,
 			// Other pool configuration not shown in this example.
 			Dial: func() (redis.Conn, error) {
-				c, err := redis.Dial("tcp", redisHost)
+				c, err := redis.Dial("tcp", config.RedisHost)
 				if err != nil {
 					return nil, err
 				}
-				if _, err := c.Do("AUTH", redisPwd); err != nil {
+				if _, err := c.Do("AUTH", config.RedisPwd); err != nil {
 					c.Close()
 					return nil, err
 				}
-				if _, err := c.Do("SELECT", redisDb); err != nil {
+				if _, err := c.Do("SELECT", config.RedisDb); err != nil {
 					c.Close()
 					return nil, err
 				}
@@ -50,9 +50,9 @@ func NewStoreSrv(nsqaddr string, host string, user string, pwd string, database 
 		},
 	}
 
-	ps.dispatchSub = NewSubscribe(&CustomProto{}, nsqaddr, MESSAGE_TOPIC_DISPATCH, MESSAGE_CHANNEL_DISPATCH_STORE, ps.dispatchChan)
-	ps.offlineSub = NewSubscribe(&CustomProto{}, nsqaddr, MESSAGE_TOPIC_OFFLINE, MESSAGE_CHANNEL_OFFLINE_STORE, ps.offlineChan)
-	ps.message = NewMysqlMessage(host, user, pwd, database, charset)
+	ps.dispatchSub = NewSubscribe(&CustomProto{}, config.NsqdHost, MESSAGE_TOPIC_DISPATCH, MESSAGE_CHANNEL_DISPATCH_STORE, ps.dispatchChan)
+	ps.offlineSub = NewSubscribe(&CustomProto{}, config.NsqdHost, MESSAGE_TOPIC_OFFLINE, MESSAGE_CHANNEL_OFFLINE_STORE, ps.offlineChan)
+	ps.message = NewMysqlMessage(config.DbHost, config.DbUser, config.DbPwd, config.DbName, config.DbCharset)
 
 	return ps
 }

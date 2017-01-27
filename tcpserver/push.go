@@ -15,7 +15,7 @@ type PushSrv struct {
 	quit    chan bool
 }
 
-func NewPushSrv(nsqaddr string, host string, pwd string, db int) *PushSrv {
+func NewPushSrv(config *PushConfig) *PushSrv {
 	ps := &PushSrv{
 		outChan: make(chan *Packet, 1024),
 		quit:    make(chan bool),
@@ -24,15 +24,15 @@ func NewPushSrv(nsqaddr string, host string, pwd string, db int) *PushSrv {
 			IdleTimeout: 300 * time.Second,
 			// Other pool configuration not shown in this example.
 			Dial: func() (redis.Conn, error) {
-				c, err := redis.Dial("tcp", host)
+				c, err := redis.Dial("tcp", config.RedisHost)
 				if err != nil {
 					return nil, err
 				}
-				if _, err := c.Do("AUTH", pwd); err != nil {
+				if _, err := c.Do("AUTH", config.RedisPwd); err != nil {
 					c.Close()
 					return nil, err
 				}
-				if _, err := c.Do("SELECT", db); err != nil {
+				if _, err := c.Do("SELECT", config.RedisDb); err != nil {
 					c.Close()
 					return nil, err
 				}
@@ -41,7 +41,7 @@ func NewPushSrv(nsqaddr string, host string, pwd string, db int) *PushSrv {
 		},
 	}
 
-	ps.sub = NewSubscribe(&CustomProto{}, nsqaddr, MESSAGE_TOPIC_OFFLINE, MESSAGE_CHANNEL_OFFLINE_PUSH, ps.outChan)
+	ps.sub = NewSubscribe(&CustomProto{}, config.NsqdHost, MESSAGE_TOPIC_OFFLINE, MESSAGE_CHANNEL_OFFLINE_PUSH, ps.outChan)
 
 	return ps
 }

@@ -9,8 +9,8 @@ import (
 )
 
 func main() {
-	config := tcpserver.NewDispatchConfig()
-	d := tcpserver.NewDispatch(config)
+	config := tcpserver.NewPushConfig()
+	d := tcpserver.NewPushSrv(config)
 	defer func() {
 		d.Close()
 	}()
