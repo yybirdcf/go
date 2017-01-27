@@ -69,6 +69,7 @@ func (d *Dispatch) Run() {
 
 //处理消息分发
 func (d *Dispatch) handle(p *Packet) {
+	p.Ct = (time.Now().UnixNano() / 1000000) //设置ms时间戳
 	switch p.Mt {
 	case MESSAGE_TYPE_P2P:
 		//单聊

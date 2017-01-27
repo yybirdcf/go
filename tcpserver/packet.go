@@ -35,6 +35,7 @@ type Packet struct {
 	Ver int32  //协议版本号
 	Mt  int32  //消息类型
 	Mid int64  //消息id
+	Ct  int64  //创建时间 ms
 	Sid int64  //发送者id
 	Rid int64  //接收者id
 	Ext []byte //附加属性字典
@@ -103,6 +104,8 @@ func (proto *CustomProto) Serialize(p *Packet) []byte {
 	binary.Write(buffer, binary.BigEndian, p.Mt)
 	//写入消息id
 	binary.Write(buffer, binary.BigEndian, p.Mid)
+	//写入创建时间
+	binary.Write(buffer, binary.BigEndian, p.Ct)
 	//写入发送者id
 	binary.Write(buffer, binary.BigEndian, p.Sid)
 	//写入接收者id
@@ -122,7 +125,7 @@ func (proto *CustomProto) Serialize(p *Packet) []byte {
 func (proto *CustomProto) Unserialize(data []byte) (*Packet, error) {
 	//先读取单条数据长度 2^32
 	l := len(data)
-	if l < 40 {
+	if l < 48 {
 		return nil, errors.New("packet unserialize error")
 	}
 
@@ -134,6 +137,8 @@ func (proto *CustomProto) Unserialize(data []byte) (*Packet, error) {
 	binary.Read(buffer, binary.BigEndian, &p.Mt)
 	//读取8字节消息id
 	binary.Read(buffer, binary.BigEndian, &p.Mid)
+	//读取8字节创建时间
+	binary.Read(buffer, binary.BigEndian, &p.Ct)
 	//读取8字节发送者id
 	binary.Read(buffer, binary.BigEndian, &p.Sid)
 	//读取8字节接收者id

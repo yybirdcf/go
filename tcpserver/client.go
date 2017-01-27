@@ -6,6 +6,7 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 var (
@@ -205,6 +206,7 @@ func (client *Client) handleAuth(p *Packet) {
 			Ver: p.Ver,
 			Mt:  MESSAGE_TYPE_AUTH_STATUS,
 			Mid: 0,
+			Ct:  time.Now().UnixNano() / 1000000,
 			Sid: 0,
 			Rid: 0,
 			Pl:  buildResponseInfo(-1, "params decode err"),
@@ -220,6 +222,7 @@ func (client *Client) handleAuth(p *Packet) {
 			Ver: p.Ver,
 			Mt:  MESSAGE_TYPE_AUTH_STATUS,
 			Mid: 0,
+			Ct:  time.Now().UnixNano() / 1000000,
 			Sid: 0,
 			Rid: 0,
 			Pl:  buildResponseInfo(-2, "auth failed"),
@@ -239,7 +242,6 @@ func (client *Client) handleAuth(p *Packet) {
 		} else {
 			//不是同一个客户端，注销之前的客户端
 			c.Close()
-			fmt.Println(44444)
 			client.server.UnRegisterClient(authInfo.Uid, c.deviceToken)
 			//注册新的客户端
 			client.server.RegisterClientByDt(client, client.deviceToken)
@@ -257,6 +259,7 @@ func (client *Client) handleAuth(p *Packet) {
 		Ver: p.Ver,
 		Mt:  MESSAGE_TYPE_AUTH_STATUS,
 		Mid: 0,
+		Ct:  time.Now().UnixNano() / 1000000,
 		Sid: 0,
 		Rid: 0,
 		Pl:  buildResponseInfo(0, ""),
