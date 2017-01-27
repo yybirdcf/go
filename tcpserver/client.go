@@ -7,6 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/garyburd/redigo/redis"
 )
 
 var (
@@ -81,6 +83,46 @@ func (client *Client) OnAuth() bool {
 	//写入用户在线
 	key := fmt.Sprintf("%s%d", KEY_PREFIX_USER_ONLINE, client.uid)
 	conn.Do("SET", key, client.uid)
+
+	//下发离线消息
+	//下发p2p
+	go func() {
+		conn := client.server.pool.Get()
+		defer conn.Close()
+
+		key := fmt.Sprintf("%s%d", KEY_PREFIX_USER_OFFLINE_MSGS, client.uid)
+		for {
+			buf, err := redis.Bytes(conn.Do("LPOP", key))
+			if buf == nil || err != nil {
+				break
+			}
+
+			p, err := client.server.protocol.Unserialize(buf)
+			if err == nil {
+				client.sendChan <- p
+			}
+		}
+	}()
+
+	//下发群消息
+	go func() {
+		conn := client.server.pool.Get()
+		defer conn.Close()
+
+		key := fmt.Sprintf("%s%d", KEY_PREFIX_GROUP_OFFLINE_MSGS, client.uid)
+		for {
+			buf, err := redis.Bytes(conn.Do("LPOP", key))
+			if buf == nil || err != nil {
+				break
+			}
+
+			p, err := client.server.protocol.Unserialize(buf)
+			if err == nil {
+				client.sendChan <- p
+			}
+		}
+	}()
+
 	return true
 }
 
