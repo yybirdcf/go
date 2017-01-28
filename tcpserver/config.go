@@ -45,7 +45,7 @@ func NewCometConfig() *CometConfig {
 		TcpHost:   ":12000",
 		NsqdHost:  ":4150",
 		RedisHost: "127.0.0.1:6379",
-		RedisPwd:  "",
+		RedisPwd:  "123456",
 		RedisDb:   1,
 	}
 }
@@ -55,7 +55,7 @@ func NewDispatchConfig() *DispatchConfig {
 		WorkerId:  1,
 		NsqdHost:  ":4150",
 		RedisHost: "127.0.0.1:6379",
-		RedisPwd:  "",
+		RedisPwd:  "123456",
 		RedisDb:   1,
 	}
 }
@@ -64,7 +64,7 @@ func NewStoreConfig() *StoreConfig {
 	return &StoreConfig{
 		NsqdHost:  ":4150",
 		RedisHost: "127.0.0.1:6379",
-		RedisPwd:  "",
+		RedisPwd:  "123456",
 		RedisDb:   1,
 		DbHost:    "127.0.0.1:3306",
 		DbUser:    "root",
@@ -78,7 +78,7 @@ func NewPushConfig() *PushConfig {
 	return &PushConfig{
 		NsqdHost:  ":4150",
 		RedisHost: "127.0.0.1:6379",
-		RedisPwd:  "",
+		RedisPwd:  "123456",
 		RedisDb:   1,
 	}
 }
