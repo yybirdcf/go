@@ -337,6 +337,18 @@ func (client *Client) handleGroup(p *Packet) {
 	}
 
 	client.server.inChan <- p
+
+	//成功回执
+	packet := &Packet{
+		Ver: p.Ver,
+		Mt:  MESSAGE_TYPE_ACK,
+		Mid: p.Mid,
+		Ct:  time.Now().UnixNano() / 1000000,
+		Sid: p.Sid,
+		Rid: p.Rid,
+	}
+
+	client.sendChan <- packet
 }
 
 func (client *Client) handleRoom(p *Packet) {
@@ -346,6 +358,18 @@ func (client *Client) handleRoom(p *Packet) {
 	}
 
 	client.server.inChan <- p
+
+	//成功回执
+	packet := &Packet{
+		Ver: p.Ver,
+		Mt:  MESSAGE_TYPE_ACK,
+		Mid: p.Mid,
+		Ct:  time.Now().UnixNano() / 1000000,
+		Sid: p.Sid,
+		Rid: p.Rid,
+	}
+
+	client.sendChan <- packet
 }
 
 func (client *Client) OnClose() bool {
