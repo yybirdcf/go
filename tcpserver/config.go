@@ -41,17 +41,44 @@ type PushConfig struct {
 }
 
 func NewCometConfig() *CometConfig {
-	return &CometConfig{}
+	return &CometConfig{
+		TcpHost:   ":12000",
+		NsqdHost:  ":4150",
+		RedisHost: "127.0.0.1:6379",
+		RedisPwd:  "",
+		RedisDb:   1,
+	}
 }
 
 func NewDispatchConfig() *DispatchConfig {
-	return &DispatchConfig{}
+	return &DispatchConfig{
+		WorkerId:  1,
+		NsqdHost:  ":4150",
+		RedisHost: "127.0.0.1:6379",
+		RedisPwd:  "",
+		RedisDb:   1,
+	}
 }
 
 func NewStoreConfig() *StoreConfig {
-	return &StoreConfig{}
+	return &StoreConfig{
+		NsqdHost:  ":4150",
+		RedisHost: "127.0.0.1:6379",
+		RedisPwd:  "",
+		RedisDb:   1,
+		DbHost:    "127.0.0.1:3306",
+		DbUser:    "root",
+		DbPwd:     "1160616612",
+		DbName:    "im",
+		DbCharset: "utf8mb4",
+	}
 }
 
 func NewPushConfig() *PushConfig {
-	return &PushConfig{}
+	return &PushConfig{
+		NsqdHost:  ":4150",
+		RedisHost: "127.0.0.1:6379",
+		RedisPwd:  "",
+		RedisDb:   1,
+	}
 }
