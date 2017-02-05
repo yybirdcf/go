@@ -56,8 +56,8 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(grpc_middleware.LogUnary(), grpc_middleware.RecoveryUnary())),
-		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(grpc_middleware.LogStream(), grpc_middleware.RecoveryStream())),
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(grpc_middleware.LogUnary(), grpc_middleware.RecoveryUnary(), grpc_middleware.AuthUnary())),
+		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(grpc_middleware.LogStream(), grpc_middleware.RecoveryStream(), grpc_middleware.AuthStream())),
 	)
 	pb.RegisterExampleServer(grpcServer, &exampleServer{})
 	grpcServer.Serve(lis)

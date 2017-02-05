@@ -9,6 +9,7 @@ import (
 	"log"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 func main() {
@@ -22,8 +23,15 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	ctx := context.Background()
+
+	ctx = metadata.NewContext(ctx, metadata.Pairs(
+		"appid", "1",
+		"token", "12345678",
+	))
+
 	client := pb.NewExampleClient(conn)
-	word, err := client.Say(context.Background(), &pb.Hello{Word: "hello"})
+	word, err := client.Say(ctx, &pb.Hello{Word: "hello"})
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -32,7 +40,7 @@ func main() {
 
 	//双向
 	waitc := make(chan struct{})
-	stream, err := client.SayStream(context.Background())
+	stream, err := client.SayStream(ctx)
 	if err != nil {
 		log.Fatalln(err)
 	}
