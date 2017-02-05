@@ -20,7 +20,7 @@
 
 ###5.rpcserver
 
-rpc服务框架，待实现
+rpc服务框架，实现了一个grpc框架的rpc服务实例，增加log，recover等middleware能力
 
 ###6.tcpserver
 
