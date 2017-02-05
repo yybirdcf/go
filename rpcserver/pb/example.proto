@@ -12,4 +12,5 @@ message World {
 
 service Example {
   rpc Say(Hello) returns (World) {}
+  rpc SayStream(stream Hello) returns (stream World) {}
 }

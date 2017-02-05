@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/rpcserver/grpc_middleware"
 	"go/rpcserver/pb"
+	"io"
 	"log"
 	"net"
 
@@ -23,6 +24,26 @@ func (server *exampleServer) Say(ctx context.Context, hello *pb.Hello) (*pb.Worl
 	}, nil
 }
 
+func (server *exampleServer) SayStream(stream pb.Example_SayStreamServer) error {
+	for {
+		in, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		word := &pb.World{
+			Word: fmt.Sprintf("%s %s", in.GetWord(), "world"),
+		}
+
+		if err := stream.Send(word); err != nil {
+			return err
+		}
+	}
+}
+
 func main() {
 	var (
 		port = flag.Int("port", 3000, "example rpc server listen port")
@@ -36,6 +57,7 @@ func main() {
 
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(grpc_middleware.LogUnary(), grpc_middleware.RecoveryUnary())),
+		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(grpc_middleware.LogStream(), grpc_middleware.RecoveryStream())),
 	)
 	pb.RegisterExampleServer(grpcServer, &exampleServer{})
 	grpcServer.Serve(lis)
