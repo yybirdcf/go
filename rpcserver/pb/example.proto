@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package pb;
+
+message Hello {
+  string word = 1;
+}
+
+message World {
+  string word = 1;
+}
+
+service Example {
+  rpc Say(Hello) returns (World) {}
+}
