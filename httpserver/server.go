@@ -1,17 +1,18 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
-  "encoding/json"
+
 	"github.com/valyala/fasthttp"
 )
 
 type Response struct {
-  Errcode int
-  Errmsg string
-  Data interface{}
+	Errcode int
+	Errmsg  string
+	Data    interface{}
 }
 
 var (
@@ -33,15 +34,15 @@ func main() {
 }
 
 func requestHandler(ctx *fasthttp.RequestCtx) {
-  path := ctx.Path()
-  switch string(path) {
-  case "/":
-    handleRoot(ctx)
-  case "/hello":
-    handleHello(ctx)
-  default:
-    handle404(ctx)
-  }
+	path := ctx.Path()
+	switch string(path) {
+	case "/":
+		handleRoot(ctx)
+	case "/hello":
+		handleHello(ctx)
+	default:
+		handle404(ctx)
+	}
 
 	ctx.SetContentType("application/json; charset=utf8")
 
@@ -56,30 +57,30 @@ func requestHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func handleRoot(ctx *fasthttp.RequestCtx) {
-  body, _ := json.Marshal(response(0, "", nil))
+	body, _ := json.Marshal(response(0, "", nil))
 
-  fmt.Fprintf(ctx, "%s", body)
+	fmt.Fprintf(ctx, "%s", body)
 }
 
 func handleHello(ctx *fasthttp.RequestCtx) {
-  x := map[string]string{
-    "hello": "world",
-  }
-  body, _ := json.Marshal(response(0, "", x))
+	x := map[string]string{
+		"hello": "world",
+	}
+	body, _ := json.Marshal(response(0, "", x))
 
-  fmt.Fprintf(ctx, "%s", body)
+	fmt.Fprintf(ctx, "%s", body)
 }
 
 func handle404(ctx *fasthttp.RequestCtx) {
-  body, _ := json.Marshal(response(404, "404 NOT FOUND", nil))
+	body, _ := json.Marshal(response(404, "404 NOT FOUND", nil))
 
-  fmt.Fprintf(ctx, "%s", body)
+	fmt.Fprintf(ctx, "%s", body)
 }
 
-func response(errcode int, errmsg string, data interface{}) Response{
-  return Response{
-    Errcode: errcode,
-    Errmsg: errmsg,
-    Data: data,
-  }
+func response(errcode int, errmsg string, data interface{}) Response {
+	return Response{
+		Errcode: errcode,
+		Errmsg:  errmsg,
+		Data:    data,
+	}
 }
