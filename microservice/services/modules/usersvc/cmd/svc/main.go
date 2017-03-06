@@ -11,7 +11,6 @@ import (
 	"strings"
 	"syscall"
 
-	stdopentracing "github.com/opentracing/opentracing-go"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -21,7 +20,6 @@ import (
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/kit/metrics/prometheus"
 	etcdsd "github.com/go-kit/kit/sd/etcd"
-	"github.com/go-kit/kit/tracing/opentracing"
 
 	"go/microservice/services/config"
 	"go/microservice/services/modules/usersvc"
@@ -85,14 +83,6 @@ func main() {
 		}, []string{"method", "success"})
 	}
 
-	// Tracing domain.
-	var tracer stdopentracing.Tracer
-	{
-		logger := log.NewContext(logger).With("tracer", "none")
-		logger.Log()
-		tracer = stdopentracing.GlobalTracer() // no-op
-	}
-
 	// Business domain.
 	var service usersvc.Service
 	{
@@ -109,7 +99,6 @@ func main() {
 		getUserinfoLogger := log.NewContext(logger).With("method", "GetUserinfo")
 
 		getUserinfoEndpoint = usersvc.MakeGetUserinfoEndpoint(service)
-		getUserinfoEndpoint = opentracing.TraceServer(tracer, "GetUserinfo")(getUserinfoEndpoint)
 		getUserinfoEndpoint = usersvc.EndpointInstrumentingMiddleware(getUserinfoDuration)(getUserinfoEndpoint)
 		getUserinfoEndpoint = usersvc.EndpointLoggingMiddleware(getUserinfoLogger)(getUserinfoEndpoint)
 		getUserinfoEndpoint = usersvc.EndpointRecoveryMiddleware(getUserinfoLogger)(getUserinfoEndpoint)
@@ -149,7 +138,7 @@ func main() {
 	// HTTP transport.
 	go func() {
 		logger := log.NewContext(logger).With("transport", "HTTP")
-		h := usersvc.MakeHTTPHandler(ctx, endpoints, tracer, logger)
+		h := usersvc.MakeHTTPHandler(ctx, endpoints, logger)
 		logger.Log("addr", *httpAddr)
 		errc <- http.ListenAndServe(*httpAddr, h)
 	}()
@@ -164,7 +153,7 @@ func main() {
 			return
 		}
 
-		srv := usersvc.MakeGRPCServer(ctx, endpoints, tracer, logger)
+		srv := usersvc.MakeGRPCServer(ctx, endpoints, logger)
 		s := grpc.NewServer()
 		pb.RegisterUsersvcServer(s, srv)
 

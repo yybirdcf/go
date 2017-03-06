@@ -4,20 +4,18 @@ package usersvc
 // It utilizes the transport/grpc.Server.
 
 import (
-	stdopentracing "github.com/opentracing/opentracing-go"
 	"golang.org/x/net/context"
 
 	"go/microservice/services/modules/usersvc/pb"
 
 	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/tracing/opentracing"
 	grpctransport "github.com/go-kit/kit/transport/grpc"
 
 	"go/microservice/services/utils"
 )
 
 // MakeGRPCServer makes a set of endpoints available as a gRPC AddServer.
-func MakeGRPCServer(ctx context.Context, endpoints Endpoints, tracer stdopentracing.Tracer, logger log.Logger) pb.UsersvcServer {
+func MakeGRPCServer(ctx context.Context, endpoints Endpoints, logger log.Logger) pb.UsersvcServer {
 	options := []grpctransport.ServerOption{
 		grpctransport.ServerErrorLogger(logger),
 	}
@@ -28,7 +26,7 @@ func MakeGRPCServer(ctx context.Context, endpoints Endpoints, tracer stdopentrac
 			endpoints.GetUserinfoEndpoint,
 			DecodeGRPCGetUserinfoRequest,
 			EncodeGRPCGetUserinfoResponse,
-			append(options, grpctransport.ServerBefore(opentracing.FromGRPCRequest(tracer, "GetUserinfo", logger)))...,
+			options...,
 		),
 	}
 }

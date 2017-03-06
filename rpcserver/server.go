@@ -8,6 +8,12 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+
+	"go/rpcserver/gateway/subscribe"
 
 	context "golang.org/x/net/context"
 
@@ -46,19 +52,50 @@ func (server *exampleServer) SayStream(stream pb.Example_SayStreamServer) error 
 
 func main() {
 	var (
-		port = flag.Int("port", 3000, "example rpc server listen port")
+		grpcAddr = flag.String("grpc.addr", ":3000", "example rgpc server listen address")
+		etcdAddr = flag.String("etcd.addr", "", "Etcd agent address, like: http://192.168.0.1:2379,http://192.168.0.2:2379")
 	)
 	flag.Parse()
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
+	lis, err := net.Listen("tcp", *grpcAddr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(grpc_middleware.LogUnary(), grpc_middleware.RecoveryUnary(), grpc_middleware.AuthUnary())),
-		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(grpc_middleware.LogStream(), grpc_middleware.RecoveryStream(), grpc_middleware.AuthStream())),
-	)
-	pb.RegisterExampleServer(grpcServer, &exampleServer{})
-	grpcServer.Serve(lis)
+	errc := make(chan error)
+	machines := strings.Split(*etcdAddr, ",")
+	subClient, err := subscribe.NewEtcdClient(context.Background(), machines)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	subKey := fmt.Sprintf("/rpcserver/%s", *grpcAddr)
+
+	go func() {
+		grpcServer := grpc.NewServer(
+			grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(grpc_middleware.LogUnary(), grpc_middleware.RecoveryUnary(), grpc_middleware.AuthUnary())),
+			grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(grpc_middleware.LogStream(), grpc_middleware.RecoveryStream(), grpc_middleware.AuthStream())),
+		)
+		pb.RegisterExampleServer(grpcServer, &exampleServer{})
+		err = grpcServer.Serve(lis)
+		errc <- err
+	}()
+
+	go func() {
+		//注册服务发现
+		err = subClient.Register(subKey, *grpcAddr)
+		errc <- err
+	}()
+
+	defer func() {
+		subClient.Deregister(subKey)
+	}()
+
+	// Interrupt handler.
+	go func() {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		errc <- fmt.Errorf("%s", <-c)
+	}()
+
+	fmt.Printf("exit: %v", <-errc)
 }

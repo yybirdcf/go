@@ -13,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	stdopentracing "github.com/opentracing/opentracing-go"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -50,14 +49,6 @@ func main() {
 	logger.Log("msg", "hello")
 	defer logger.Log("msg", "goodbye")
 
-	// Tracing domain.
-	var tracer stdopentracing.Tracer
-	{
-		logger := log.NewContext(logger).With("tracer", "none")
-		logger.Log()
-		tracer = stdopentracing.GlobalTracer() // no-op
-	}
-
 	// Service discovery domain.
 	var client etcdsd.Client
 	{
@@ -69,7 +60,7 @@ func main() {
 		endpoints = usersvc.Endpoints{}
 	)
 	{
-		factory := usersvcFactory(usersvc.MakeGetUserinfoEndpoint, tracer, logger)
+		factory := usersvcFactory(usersvc.MakeGetUserinfoEndpoint, logger)
 		subscriber, err := etcdsd.NewSubscriber(client, "services/usersvc/", factory, logger)
 		if err != nil {
 			logger.Log("err", err)
@@ -92,13 +83,9 @@ func main() {
 		errc <- fmt.Errorf("%s", <-c)
 	}()
 
-	//http transport
-	// r := mux.NewRouter()
-	// r.PathPrefix("/usersvc").Handler(http.StripPrefix("/usersvc", usersvc.MakeHTTPHandler(ctx, endpoints, tracer, logger)))
 	go func() {
 		logger.Log("transport", "HTTP", "addr", *httpAddr)
-		// errc <- http.ListenAndServe(*httpAddr, r)
-		errc <- http.ListenAndServe(*httpAddr, usersvc.MakeHTTPHandler(ctx, endpoints, tracer, logger))
+		errc <- http.ListenAndServe(*httpAddr, usersvc.MakeHTTPHandler(ctx, endpoints, logger))
 	}()
 
 	// gRPC transport.
@@ -111,7 +98,7 @@ func main() {
 			return
 		}
 
-		srv := usersvc.MakeGRPCServer(ctx, endpoints, tracer, logger)
+		srv := usersvc.MakeGRPCServer(ctx, endpoints, logger)
 		s := grpc.NewServer()
 		pb.RegisterUsersvcServer(s, srv)
 
@@ -139,26 +126,14 @@ func main() {
 	logger.Log("exit", <-errc)
 }
 
-func usersvcFactory(makeEndpoint func(usersvc.Service) endpoint.Endpoint, tracer stdopentracing.Tracer, logger log.Logger) sd.Factory {
+func usersvcFactory(makeEndpoint func(usersvc.Service) endpoint.Endpoint, logger log.Logger) sd.Factory {
 	return func(instance string) (endpoint.Endpoint, io.Closer, error) {
-		// We could just as easily use the HTTP or Thrift client package to make
-		// the connection to addsvc. We've chosen gRPC arbitrarily. Note that
-		// the transport is an implementation detail: it doesn't leak out of
-		// this function. Nice!
-
 		conn, err := grpc.Dial(instance, grpc.WithInsecure(), grpc.WithTimeout(time.Second))
 		if err != nil {
 			return nil, nil, err
 		}
-		service := usersvcgrpcclient.New(conn, tracer, logger)
+		service := usersvcgrpcclient.New(conn, logger)
 		endpoint := makeEndpoint(service)
-
-		// Notice that the addsvc gRPC client converts the connection to a
-		// complete addsvc, and we just throw away everything except the method
-		// we're interested in. A smarter factory would mux multiple methods
-		// over the same connection. But that would require more work to manage
-		// the returned io.Closer, e.g. reference counting. Since this is for
-		// the purposes of demonstration, we'll just keep it simple.
 
 		return endpoint, conn, nil
 	}

@@ -4,7 +4,6 @@ package grpc
 import (
 	"time"
 
-	stdopentracing "github.com/opentracing/opentracing-go"
 	"github.com/sony/gobreaker"
 	"google.golang.org/grpc"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/ratelimit"
-	"github.com/go-kit/kit/tracing/opentracing"
 	grpctransport "github.com/go-kit/kit/transport/grpc"
 	jujuratelimit "github.com/juju/ratelimit"
 
@@ -22,7 +20,7 @@ import (
 
 // New returns an AddService backed by a gRPC client connection. It is the
 // responsibility of the caller to dial, and later close, the connection.
-func New(conn *grpc.ClientConn, tracer stdopentracing.Tracer, logger log.Logger) usersvc.Service {
+func New(conn *grpc.ClientConn, logger log.Logger) usersvc.Service {
 	// We construct a single ratelimiter middleware, to limit the total outgoing
 	// QPS from this client to all methods on the remote instance. We also
 	// construct per-endpoint circuitbreaker middlewares to demonstrate how
@@ -41,9 +39,7 @@ func New(conn *grpc.ClientConn, tracer stdopentracing.Tracer, logger log.Logger)
 			usersvc.EncodeGRPCGetUserinfoRequest,
 			usersvc.DecodeGRPCGetUserinfoResponse,
 			pb.GetUserinfoResponse{},
-			grpctransport.ClientBefore(opentracing.ToGRPCRequest(tracer, logger)),
 		).Endpoint()
-		getUserinfoEndpoint = opentracing.TraceClient(tracer, "GetUserinfo")(getUserinfoEndpoint)
 		getUserinfoEndpoint = limiter(getUserinfoEndpoint)
 		getUserinfoEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{
 			Name:    "GetUserinfo",
