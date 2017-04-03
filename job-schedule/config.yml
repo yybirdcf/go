@@ -1,0 +1,18 @@
+---
+###job-schedule config file
+#try max times
+times: 50
+#jobs
+jobs:
+- description: "test job"
+  cmd: "/usr/local/bin/php"
+  params: "/Users/administrator/Documents/workspace/meme-product/application/cronds/Example.php"
+  max: 1
+- description: "test job 2"
+  cmd: "/usr/local/bin/php"
+  params: "/Users/administrator/Documents/workspace/meme-product/application/cronds/ExampleRabbitReceiver.php"
+  max: 1
+- description: "test job 3"
+  cmd: "/usr/local/bin/php"
+  params: "/Users/administrator/Documents/workspace/meme-product/application/cronds/ExampleRabbitSender.php"
+  max: 1
