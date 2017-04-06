@@ -18,10 +18,10 @@ func checkFileIsExist(filename string) bool {
 
 func createFile(filename string) (*os.File, error) {
 	if checkFileIsExist(filename) {
-		return os.OpenFile(filename, os.O_APPEND, 0666)
+		return os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 	}
 
-	err := os.MkdirAll(path.Dir(filename), os.ModePerm)
+	err := os.MkdirAll(path.Dir(filename), 0777)
 	if err != nil {
 		return nil, err
 	}
