@@ -2,7 +2,7 @@ package httpmiddleware
 
 import (
 	"fmt"
-	"io"
+	"os"
 	"strconv"
 	"time"
 	"unicode/utf8"
@@ -13,7 +13,7 @@ import (
 const lowerhex = "0123456789abcdef"
 
 type combinedLoggingHandler struct {
-	writer  io.Writer
+	writer  **os.File
 	handler func(ctx *fasthttp.RequestCtx)
 }
 
@@ -23,37 +23,48 @@ func (h *combinedLoggingHandler) ServeHTTP(ctx *fasthttp.RequestCtx) {
 	writeCombinedLog(h.writer, t, fmt.Sprintf("%s", time.Since(t)), ctx)
 }
 
-func writeCombinedLog(w io.Writer, ts time.Time, duration string, ctx *fasthttp.RequestCtx) {
+func writeCombinedLog(w **os.File, ts time.Time, duration string, ctx *fasthttp.RequestCtx) {
 	buf := buildCommonLogLine(ts, duration, ctx)
 	buf = append(buf, ` "`...)
 	buf = appendQuoted(buf, ctx.Referer())
 	buf = append(buf, `" "`...)
 	buf = appendQuoted(buf, ctx.UserAgent())
+	buf = append(buf, `" "`...)
+	buf = appendQuoted(buf, ctx.Request.Body())
 	buf = append(buf, '"', '\n')
-	w.Write(buf)
+	_, err := (*w).Write(buf)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func buildCommonLogLine(ts time.Time, duration string, ctx *fasthttp.RequestCtx) []byte {
 	username := "-"
 	proto := "-"
+	if ctx.Request.Header.IsHTTP11() {
+		proto = "HTTP/1.1"
+	} else {
+		proto = "HTTP/1.0"
+	}
 
-	host := ctx.RemoteIP().String()
-
+	addr := ctx.RemoteIP().String()
 	uri := ctx.RequestURI()
-
 	method := ctx.Method()
-
 	status := ctx.Response.StatusCode()
+	respBodySize := "-"
+	respSize := ctx.Response.Header.ContentLength()
+	reqSize := ctx.Request.Header.ContentLength()
+	host := ctx.Host()
+	xForwardedFor := ctx.Request.Header.Peek("X-Forwarded-For")
 
-	size := len(ctx.Response.Body())
-
-	buf := make([]byte, 0, 3*(len(host)+len(username)+len(method)+len(uri)+len(proto)+50)/2)
-	buf = append(buf, host...)
+	buf := make([]byte, 0, 3*(len(host)+len(username)+len(method)+len(uri)+len(proto)+len(host)+len(xForwardedFor)+50)/2)
+	buf = append(buf, "["...)
+	buf = append(buf, ts.Format("02/Jan/2006:15:04:05 -0700")...)
+	buf = append(buf, `] `...)
+	buf = append(buf, addr...)
 	buf = append(buf, " - "...)
 	buf = append(buf, username...)
-	buf = append(buf, " ["...)
-	buf = append(buf, ts.Format("02/Jan/2006:15:04:05 -0700")...)
-	buf = append(buf, `] "`...)
+	buf = append(buf, ` "`...)
 	buf = append(buf, method...)
 	buf = append(buf, " "...)
 	buf = appendQuoted(buf, uri)
@@ -62,9 +73,18 @@ func buildCommonLogLine(ts time.Time, duration string, ctx *fasthttp.RequestCtx)
 	buf = append(buf, `" `...)
 	buf = append(buf, strconv.Itoa(status)...)
 	buf = append(buf, " "...)
-	buf = append(buf, strconv.Itoa(size)...)
-	buf = append(buf, " "...)
 	buf = append(buf, duration...)
+	buf = append(buf, " "...)
+	buf = append(buf, strconv.Itoa(reqSize)...)
+	buf = append(buf, " "...)
+	buf = append(buf, respBodySize...)
+	buf = append(buf, " "...)
+	buf = append(buf, strconv.Itoa(respSize)...)
+	buf = append(buf, " "...)
+	buf = append(buf, host...)
+	buf = append(buf, ` "`...)
+	buf = append(buf, xForwardedFor...)
+	buf = append(buf, `"`...)
 	return buf
 }
 
@@ -133,7 +153,7 @@ func appendQuoted(buf []byte, s []byte) []byte {
 
 }
 
-func LoggingHandler(out io.Writer, h func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx) {
+func LoggingHandler(out **os.File, h func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx) {
 	clh := combinedLoggingHandler{
 		writer:  out,
 		handler: h,

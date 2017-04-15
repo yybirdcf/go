@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
 	"regexp"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-kit/kit/metrics"
@@ -32,6 +32,7 @@ type Proxy struct {
 	mutex           sync.Mutex
 	sub             *Subscribe
 	servicesCounter metrics.Counter
+	c               uint64
 }
 
 func NewProxy(sub *Subscribe, servicesCounter metrics.Counter) *Proxy {
@@ -40,6 +41,7 @@ func NewProxy(sub *Subscribe, servicesCounter metrics.Counter) *Proxy {
 		hostClients:     make(map[string]*fasthttp.HostClient),
 		sub:             sub,
 		servicesCounter: servicesCounter,
+		c:               0,
 	}
 
 	go p.hcClean()
@@ -79,7 +81,10 @@ func (self *Proxy) ServeHTTP(ctx *fasthttp.RequestCtx) {
 	}
 
 	//暂时随机选一个实例
-	var proxyClient = self.getHostClient(entries[rand.Intn(length)])
+	// i := rand.Intn(length)
+	//轮询
+	i := atomic.AddUint64(&self.c, 1) - 1
+	proxyClient := self.getHostClient(entries[i%uint64(length)])
 
 	req := &ctx.Request
 	resp := &ctx.Response

@@ -30,8 +30,7 @@ type Config struct {
 	Etcd  []string
 
 	Log struct {
-		Access string
-		Error  string
+		Dir string
 	}
 
 	Limit struct {
@@ -114,13 +113,9 @@ func GetConfig(path string) *Config {
 		}
 	}
 
-	log_access, err := c.String("log.access")
+	log_dir, err := c.String("log.dir")
 	if err != nil {
 		log.Fatalf("error log.access: %s\n", err.Error())
-	}
-	log_error, err := c.String("log.error")
-	if err != nil {
-		log.Fatalf("error log.error: %s\n", err.Error())
 	}
 
 	limit_ttl, err := c.Int("limit.ttl")
@@ -147,8 +142,7 @@ func GetConfig(path string) *Config {
 	cfg.Https.Key = https_key
 	cfg.Limit.TTL = limit_ttl
 	cfg.Limit.Max = limit_max
-	cfg.Log.Access = log_access
-	cfg.Log.Error = log_error
+	cfg.Log.Dir = log_dir
 
 	return cfg
 }

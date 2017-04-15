@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -19,13 +20,26 @@ type Ret struct {
 	Data    interface{} `json:"data"`
 }
 
+//服务实例
+type Service struct {
+	Service  string   `json:"service"`   //服务名字
+	Iport    string   `json:"iport"`     //ip:port信息
+	Title    string   `json:"title"`     //备注
+	PingUri  string   `json:"ping_uri"`  //后端服务检测uri
+	PingHost string   `json:"ping_host"` //后端服务检测host
+	Status   int      `json:"status"`    //后端服务返回状态码
+	State    string   `json:"state"`     //后端服务状态
+	Quit     chan int `json:"-"`         //退出定时器
+}
+
 //Admin route管理工具，维护apigateway rule->service 映射表
 type Admin struct {
-	proxy  *Proxy
-	client *Subclient
-	cfg    *Config
-	db     *sql.DB
-	logger log.Logger
+	proxy    *Proxy
+	client   *Subclient
+	cfg      *Config
+	db       *sql.DB
+	logger   log.Logger
+	services map[string]*Service
 }
 
 func NewAdmin(logger log.Logger, cfg *Config, proxy *Proxy, client *Subclient) (*Admin, error) {
@@ -37,14 +51,17 @@ func NewAdmin(logger log.Logger, cfg *Config, proxy *Proxy, client *Subclient) (
 	}
 
 	admin := &Admin{
-		logger: logger,
-		cfg:    cfg,
-		proxy:  proxy,
-		client: client,
-		db:     db,
+		logger:   logger,
+		cfg:      cfg,
+		proxy:    proxy,
+		client:   client,
+		db:       db,
+		services: make(map[string]*Service),
 	}
 
+	err = admin.loadServices()
 	err = admin.loadTable()
+
 	return admin, err
 }
 
@@ -69,13 +86,42 @@ func (self *Admin) handleApiRegister(ctx *fasthttp.RequestCtx) {
 	args := ctx.PostArgs()
 	service := string(args.Peek("service"))
 	host := string(args.Peek("host"))
+	title := string(args.Peek("title"))
+	ping_uri := string(args.Peek("ping_uri"))
+	ping_host := string(args.Peek("ping_host"))
 
 	if service == "" || host == "" {
 		self.ret(ctx, -1, "参数错误", nil)
 		return
 	}
 
-	key := fmt.Sprintf("%s/%s", service, host)
+	//表rule唯一
+	_, err := self.db.Exec("INSERT INTO service (service, iport, title, ping_uri, ping_host) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE title=?, ping_uri=?, ping_host=?",
+		service, host, title, ping_uri, ping_host, title, ping_uri, ping_host,
+	)
+	if err != nil {
+		self.ret(ctx, -1, "写入数据库失败", nil)
+		return
+	}
+
+	key := fmt.Sprintf("%s-%s", service, host)
+	key = strings.Replace(key, ".", "-", -1)
+	key = strings.Replace(key, ":", "-", -1)
+	if s, ok := self.services[key]; ok {
+		s.Quit <- 1
+	}
+
+	self.services[key] = &Service{
+		Service:  service,
+		Iport:    host,
+		Title:    title,
+		PingUri:  ping_uri,
+		PingHost: ping_host,
+		Quit:     make(chan int),
+	}
+	go self.ping(key)
+
+	key = fmt.Sprintf("%s/%s", service, host)
 	self.client.Register(key, host)
 
 	self.ret(ctx, 0, "", nil)
@@ -92,21 +138,41 @@ func (self *Admin) handleApiDeRegister(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	key := fmt.Sprintf("%s/%s", service, host)
+	_, err := self.db.Exec("DELETE FROM service WHERE service=? AND iport=?", service, host)
+	if err != nil {
+		self.ret(ctx, -1, "操作数据库失败", nil)
+		return
+	}
+
+	key := fmt.Sprintf("%s-%s", service, host)
+	key = strings.Replace(key, ".", "-", -1)
+	key = strings.Replace(key, ":", "-", -1)
+
+	self.services[key].Quit <- 1
+	delete(self.services, key)
+
+	key = fmt.Sprintf("%s/%s", service, host)
 	self.client.Deregister(key)
 
 	self.ret(ctx, 0, "", nil)
 }
 
+//供给zabbix用
+func (self *Admin) handleApiServicesStatus(ctx *fasthttp.RequestCtx) {
+	rs := []Service{}
+	for _, v := range self.services {
+		v.State = "success"
+		if v.Status < 200 || v.Status >= 400 {
+			v.State = "fail"
+		}
+		rs = append(rs, *v)
+	}
+	self.ret(ctx, 0, "", rs)
+}
+
 //handleApiServices 获取当前正在运行的服务和对应的后端实例列表
 func (self *Admin) handleApiServices(ctx *fasthttp.RequestCtx) {
-	data, err := self.client.GetEntries()
-	if err != nil {
-		self.ret(ctx, -1, err.Error(), nil)
-		return
-	}
-
-	self.ret(ctx, 0, "", data)
+	self.ret(ctx, 0, "", self.services)
 }
 
 //handleApiList 列出所有当前生效的api配置信息
@@ -277,6 +343,69 @@ func (self *Admin) loadTable() error {
 	return nil
 }
 
+func (self *Admin) loadServices() error {
+	rows, err := self.db.Query("SELECT service, iport, title, ping_uri, ping_host FROM service")
+	if err != nil {
+		self.logger.Log("admin.loadServices", err.Error())
+		return err
+	}
+
+	for rows.Next() {
+		var service string
+		var iport string
+		var title string
+		var ping_uri string
+		var ping_host string
+		if err := rows.Scan(&service, &iport, &title, &ping_uri, &ping_host); err != nil {
+			self.logger.Log("admin.loadServices", err.Error())
+			continue
+		}
+
+		key := fmt.Sprintf("%s-%s", service, iport)
+		key = strings.Replace(key, ".", "-", -1)
+		key = strings.Replace(key, ":", "-", -1)
+
+		self.services[key] = &Service{
+			Service:  service,
+			Iport:    iport,
+			Title:    title,
+			PingUri:  ping_uri,
+			PingHost: ping_host,
+			Quit:     make(chan int),
+		}
+
+		go self.ping(key)
+	}
+	rows.Close()
+
+	return nil
+}
+
+//检测后端服务状态
+func (self *Admin) ping(key string) {
+	s := self.services[key]
+	hc := &fasthttp.HostClient{}
+	hc.Addr = s.Iport
+	var url string
+	if s.PingHost == "" {
+		url = fmt.Sprintf("http://%s%s", s.Iport, s.PingUri)
+	} else {
+		url = fmt.Sprintf("http://%s%s", s.PingHost, s.PingUri)
+	}
+
+	t := time.NewTimer(5 * time.Second)
+	for {
+		select {
+		case <-s.Quit:
+			return
+		case <-t.C:
+			code, _, _ := hc.Get(nil, url)
+			s.Status = code
+			t.Reset(5 * time.Second)
+		}
+	}
+}
+
 //HandleFastHttp 监听服务
 func (self *Admin) HandleFastHttp(ctx *fasthttp.RequestCtx) {
 	switch string(ctx.Path()) {
@@ -286,6 +415,8 @@ func (self *Admin) HandleFastHttp(ctx *fasthttp.RequestCtx) {
 		self.handleApiDeRegister(ctx)
 	case "/api/services":
 		self.handleApiServices(ctx)
+	case "/api/services/status":
+		self.handleApiServicesStatus(ctx)
 	case "/api/list":
 		self.handleApiList(ctx)
 	case "/api/table":

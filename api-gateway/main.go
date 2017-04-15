@@ -16,6 +16,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/kit/metrics/prometheus"
+	"github.com/howeyc/fsnotify"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/valyala/fasthttp"
 )
@@ -40,16 +41,56 @@ func main() {
 	}
 
 	//初始化日志文件
-	fileAccess, err := createFile(cfg.Log.Access)
+	accessName := fmt.Sprintf("%s/access.log", cfg.Log.Dir)
+	faccess, err := createFile(accessName)
 	if err != nil {
 		logger.Log("log_access", err.Error())
 		return
 	}
-	fileError, err := createFile(cfg.Log.Error)
+	errorName := fmt.Sprintf("%s/error.log", cfg.Log.Dir)
+	ferror, err := createFile(errorName)
 	if err != nil {
 		logger.Log("log_error", err.Error())
 		return
 	}
+
+	//监控access文件
+	go func() {
+		watch, err := fsnotify.NewWatcher()
+		if err != nil {
+			logger.Log("log_file_monitor", err)
+			return
+		}
+
+		err = watch.WatchFlags(cfg.Log.Dir, fsnotify.FSN_DELETE|fsnotify.FSN_RENAME)
+		if err != nil {
+			logger.Log("monitor_err", err)
+		}
+
+		go func() {
+			for {
+				select {
+				case w := <-watch.Event:
+					if w.IsDelete() || w.IsRename() {
+						faccess.Close()
+						ferror.Close()
+
+						faccess, err = createFile(accessName)
+						if err != nil {
+							logger.Log("log_error", err.Error())
+						}
+
+						ferror, err = createFile(errorName)
+						if err != nil {
+							logger.Log("log_error", err.Error())
+						}
+					}
+				case err := <-watch.Error:
+					logger.Log("monitor_err", err)
+				}
+			}
+		}()
+	}()
 
 	var duration metrics.Histogram
 	{
@@ -143,8 +184,8 @@ func main() {
 			// 			httpmiddleware.RecoveryHandler(os.Stdout,
 			// 				httpmiddleware.DurationHandler(duration, httpResponsesTotal, httpRequestResponseSize, proxy.ServeHTTP)))))
 			errc <- fasthttp.ListenAndServe(cfg.Proxy,
-				httpmiddleware.LoggingHandler(fileAccess,
-					httpmiddleware.RecoveryHandler(fileError,
+				httpmiddleware.LoggingHandler(&faccess,
+					httpmiddleware.RecoveryHandler(&ferror,
 						httpmiddleware.DurationHandler(duration, httpResponsesTotal, httpRequestResponseSize, proxy.ServeHTTP))))
 		}()
 
@@ -154,9 +195,9 @@ func main() {
 				logger = log.With(logger, "transport", "HTTP")
 				logger.Log("proxy http addr", cfg.Proxy)
 				errc <- fasthttp.ListenAndServeTLS(cfg.Https.Addr, cfg.Https.Cert, cfg.Https.Key,
-					httpmiddleware.LoggingHandler(fileAccess,
+					httpmiddleware.LoggingHandler(&faccess,
 						httpmiddleware.LimitHandler(time.Duration(cfg.Limit.TTL)*time.Millisecond, cfg.Limit.Max,
-							httpmiddleware.RecoveryHandler(fileError,
+							httpmiddleware.RecoveryHandler(&ferror,
 								httpmiddleware.DurationHandler(duration, httpResponsesTotal, httpRequestResponseSize, proxy.ServeHTTP)))))
 			}()
 		}
@@ -188,8 +229,8 @@ func main() {
 
 	logger.Log("msg", "hello")
 	defer func() {
-		fileAccess.Close()
-		fileError.Close()
+		faccess.Close()
+		ferror.Close()
 		logger.Log("msg", "goodbye")
 	}()
 

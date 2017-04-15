@@ -2,7 +2,7 @@
 ###api gateway config file
 #route map mysql config table
 db:
-  host: "root:12345678@tcp(127.0.0.1:3306)/apigateway?charset=utf8"
+  host: "apigatewayqa7:apigatewayqa7@tcp(vpc-qa-new.cmcopvs0wxn0.rds.cn-north-1.amazonaws.com.cn:3306)/apigatewayqa7?charset=utf8"
 
 #redis for auth
 redis:
@@ -17,7 +17,7 @@ debug: ":18081"
 admin: ":18082"
 
 #proxy addr
-proxy: ":18080"
+proxy: ":8083"
 
 #https addr
 https:
@@ -32,8 +32,7 @@ etcd:
 
 #log file
 log:
-  access: "/tmp/apigateway/access.log"
-  error: "/tmp/apigateway/error.log"
+  dir: "/tmp/apigateway"
 
 #针对ip限制策略
 limit:

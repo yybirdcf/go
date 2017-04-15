@@ -32,8 +32,7 @@ etcd:
 
 #log file
 log:
-  access: "/tmp/apigateway/access.log"
-  error: "/tmp/apigateway/error.log"
+  dir: "/tmp/apigateway"
 
 #针对ip限制策略
 limit:
