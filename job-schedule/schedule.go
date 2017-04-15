@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -50,13 +51,21 @@ func (s *Schedule) monitor() {
 					s.reload()
 				}
 			case err := <-watch.Error:
-				log.Fatalln(err)
+				log.Println(err)
 			}
 		}
 	}()
 }
 
 func (s *Schedule) reload() {
+	defer func() {
+		if re := recover(); re != nil {
+			stack := make([]byte, 4*1024)
+			stack = stack[:runtime.Stack(stack, false)]
+			log.Println(string(stack))
+		}
+	}()
+
 	cfg := GetConfig(s.cfg.File)
 	s.cfg = cfg
 	s.Run()
@@ -112,7 +121,10 @@ func (s *Schedule) runJob(identity string) {
 			cmd := exec.Command(job.Cmd, args...)
 			cmd.Stderr = os.Stderr
 			cmd.Stdout = os.Stdout
-			cmd.Start()
+			if err := cmd.Start(); err != nil {
+				log.Println("Start: ", err.Error())
+				time.Sleep(time.Duration(time.Millisecond * 500))
+			}
 		}
 	}
 }

@@ -4,15 +4,7 @@
 times: 50
 #jobs
 jobs:
-- description: "test job"
-  cmd: "/usr/local/bin/php"
-  params: "/Users/administrator/Documents/workspace/meme-product/application/cronds/Example.php"
-  max: 1
-- description: "test job 2"
-  cmd: "/usr/local/bin/php"
-  params: "/Users/administrator/Documents/workspace/meme-product/application/cronds/ExampleRabbitReceiver.php"
-  max: 1
-- description: "test job 3"
-  cmd: "/usr/local/bin/php"
-  params: "/Users/administrator/Documents/workspace/meme-product/application/cronds/ExampleRabbitSender.php"
+- description: "product price redis"
+  cmd: "/usr/bin/php"
+  params: "/opt/www/meme-product/application/cronds/PriceRedisReceiver.php"
   max: 1

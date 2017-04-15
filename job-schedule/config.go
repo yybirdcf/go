@@ -25,17 +25,17 @@ type Config struct {
 func GetConfig(path string) *Config {
 	c, err := config.ParseYamlFile(path)
 	if err != nil {
-		log.Fatalf("error parse yml: %s\n", err.Error())
+		log.Println(err.Error())
 	}
 
 	times, err := c.Int("times")
 	if err != nil {
-		log.Fatalf("error times: %s\n", err.Error())
+		log.Println(err.Error())
 	}
 
 	l, err := c.List("jobs")
 	if err != nil {
-		log.Fatalf("error jobs: %s\n", err.Error())
+		log.Println(err.Error())
 	}
 
 	jobs := make(map[string]Job)
