@@ -24,11 +24,11 @@ api-gateway主要用于提供统一的网关服务，将不同业务请求分发
 
 架构图
 
-<img src="https://git.cn.memebox.com/global/api-gateway/raw/c19f62da2662c5ad38b3c256ce794ac6bdf4dcf1/files/jiagou1.png" width="600" height="300"/>
+<img src="https://raw.githubusercontent.com/yybirdcf/go/master/api-gateway/files/jiagou1.png" width="600" height="300"/>
 
 流程图
 
-<img src="https://git.cn.memebox.com/global/api-gateway/raw/master/files/jiagou2.png" width="600" height="300"/>
+<img src="https://raw.githubusercontent.com/yybirdcf/go/master/api-gateway/files/jiagou2.png" width="600" height="300"/>
 
 性能对比
 
@@ -192,4 +192,4 @@ curl -d "rule=127.0.0.1%3A18080%2Forders%2F%28.%2A%3F%29" "http://127.0.0.1:1808
 
 ### 5.简单的控制台
 
-<img src="https://git.cn.memebox.com/global/api-gateway/raw/master/files/console.png" width="800" height="400"/>
+<img src="https://raw.githubusercontent.com/yybirdcf/go/master/api-gateway/files/console.png" width="800" height="400"/>
