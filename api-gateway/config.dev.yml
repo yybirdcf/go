@@ -1,0 +1,42 @@
+---
+###api gateway config file
+#route map mysql config table
+db:
+  host: "root:12345678@tcp(127.0.0.1:3306)/apigateway?charset=utf8"
+
+#redis for auth
+redis:
+  host: "127.0.0.1:6379"
+  pwd: ""
+  db: 1
+
+#debug and metrics addr
+debug: ":18081"
+
+#admin manager tools
+admin: ":18082"
+
+#proxy addr
+proxy: ":18080"
+
+#https addr
+https:
+  addr: "18088"
+  enable: false
+  cert: "./ssl-cert-snakeoil.pem"
+  key: "./ssl-cert-snakeoil.key"
+
+#etcd addrs
+etcd:
+- "http://127.0.0.1:2379"
+
+#log file
+log:
+  dir: "/tmp/apigateway"
+
+#针对ip限制策略
+limit:
+  #每n ms
+  ttl: 1000
+  #允许请求数
+  max: 5

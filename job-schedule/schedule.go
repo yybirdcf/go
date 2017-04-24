@@ -47,7 +47,14 @@ func (s *Schedule) monitor() {
 		for {
 			select {
 			case w := <-watch.Event:
-				if w.IsModify() {
+				if w.IsRename() || w.IsDelete() {
+					/*
+						vim应该是把改动存到swap file然后通过删掉原文件，然后rename的办法来保存文件的
+						RENAME -> MODIFY|ATTRIB -> DELETE
+					*/
+					watch.RemoveWatch(s.cfg.File)
+					watch.Watch(s.cfg.File)
+				} else if w.IsModify() {
 					s.reload()
 				}
 			case err := <-watch.Error:
@@ -116,15 +123,17 @@ func (s *Schedule) runJob(identity string) {
 				continue
 			}
 
-			params := fmt.Sprintf("%s %s", job.Params, job.Identity)
-			args := strings.Split(params, " ")
-			cmd := exec.Command(job.Cmd, args...)
-			cmd.Stderr = os.Stderr
-			cmd.Stdout = os.Stdout
-			if err := cmd.Start(); err != nil {
-				log.Println("Start: ", err.Error())
-				time.Sleep(time.Duration(time.Millisecond * 500))
-			}
+			go func() {
+				params := fmt.Sprintf("%s %s", job.Params, job.Identity)
+				args := strings.Split(params, " ")
+				cmd := exec.Command(job.Cmd, args...)
+				cmd.Stderr = os.Stderr
+				cmd.Stdout = os.Stdout
+				if err := cmd.Run(); err != nil {
+					log.Println("run: ", err.Error())
+					time.Sleep(time.Duration(time.Millisecond * 500))
+				}
+			}()
 		}
 	}
 }
